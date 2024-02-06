@@ -1,0 +1,138 @@
+---
+title: "Day 7 and 8 (week4) class"
+subtitle: "Two-way ANOVA"
+author: "Joe Skufca"
+date:  "2024-02-05"
+output: html_notebook
+---
+
+Working through chapter 4 of *Greenwood*.
+
+## Packages that we will typically load
+
+
+Here are three of my favorites that I always load.
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(here)
+
+library(readxl) #for data ease
+library(mosaic)
+library(yarrr)
+```
+ANOVA chapter uses three new packages:
+```{r}
+library(effects)
+library(car)
+library(catstats)
+```
+
+
+
+## Pretend data
+
+```{r}
+pt <- read_csv("http://www.math.montana.edu/courses/s217/documents/pt.csv") %>%
+     mutate(across(brand:drops,factor)) %>%
+     clean_names() %>%
+     select(-dropsf)
+```
+
+## 4.2
+
+
+
+```{r}
+tally(brand ~ drops, data = pt)
+```
+
+```{r}
+favstats(responses ~ brand + drops, data = pt)
+```
+
+### pg 137
+
+```{r}
+set.seed(12)
+pirateplot(responses ~ brand * drops, data = pt, xlab = "Drops", ylab = "Time",
+inf.method = "ci", inf.disp = "line", theme = 2, point.o = 1)
+```
+
+```{r}
+intplot(responses ~ brand * drops, data = pt)
+```
+
+```{r}
+intplot(responses ~ drops * brand, data = pt)
+```
+
+### pg 139
+```{r}
+intplotarray(responses ~ drops * brand, data = pt)
+```
+
+
+## Sec 4.3  
+
+
+```{r}
+m1 <- lm(responses ~ brand * drops, data = pt)
+anova(m1)
+```
+
+```{r}
+plot(allEffects(m1), grid = T, multiline = T, lty = c(1:2), ci.style = "bars")
+```
+
+
+```{r}
+m2 <- lm(responses ~ brand + drops, data = pt)
+anova(m2)
+```
+
+```{r}
+Anova(m2)
+```
+
+
+#### Illustrate with subsample
+
+```{r}
+pt_sub=pt |> slice_sample(prop=.9)
+m2_1 <- lm(responses ~ brand + drops, data = pt_sub)
+m2_2 <- lm(responses ~ drops + brand, data = pt_sub)
+anova(m2_1)
+anova(m2_2)
+```
+
+```{r}
+pt_sub=pt |> slice_sample(prop=.9)
+m2_1 <- lm(responses ~ brand + drops, data = pt_sub)
+m2_2 <- lm(responses ~ drops+brand, data = pt_sub)
+Anova(m2_1)
+Anova(m2_2)
+```
+```{r}
+
+#pt_sub=pt |> slice_sample(prop=.9)
+m2_1f <- lm(responses ~ brand + drops, data = pt)
+m2_2f <- lm(responses ~ drops+brand, data = pt)
+anova(m2_1f)
+anova(m2_2f)
+
+```
+
+### pg 146
+
+```{r}
+summary(m2)
+```
+
+```{r}
+plot(allEffects(m2, residuals = T))
+```
+
+
+## 4.4
