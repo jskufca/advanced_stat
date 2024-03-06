@@ -214,7 +214,7 @@ sample = F)
 
 ```{r}
 election2 <- election %>%
-select(VOTEF, PARTY, EDUC, GENDER) %>%
+dplyr::select(VOTEF, PARTY, EDUC, GENDER) %>%
 drop_na()
 tableplot(election2, select = c(VOTEF, PARTY, EDUC, GENDER), sort = 1,
 pals = list("BrBG"), sample = F)
@@ -295,6 +295,9 @@ plot(m1, which = 2, pch = 16)
 
 ```{r}
 shapiro.test(apistrat$growth)
+
+
+
 ```
 
 ```{r}

@@ -1,0 +1,82 @@
+---
+title: "Day 11 (week 6) class"
+subtitle: "Ch5 - contingency tables"
+author: "Joe Skufca"
+date:  "2024-02-11"
+output: html_notebook
+---
+
+Analysis of some MA131 grade data from Fall 2023.
+
+## Packages that we will typically load
+
+
+Here are three of my favorites that I always load.
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(here)
+
+library(readxl) #for data ease
+
+```
+ANOVA chapter added four new packages:
+```{r}
+#library(effects)
+library(car)
+#library(catstats)
+library(tabplot)
+
+library(mosaic)
+#library(yarrr)
+```
+
+And for chapter 5, we add:
+
+```{r}
+library(vcd)  #visualizing categorical data
+library(RColorBrewer) # colors
+#library(poLCA) # for a dataset
+#library(survey) # we will use for a dataset, but supports analysis of survey data
+```
+
+## Sec 5.1
+
+```{r}
+df1=readr::read_csv("https://raw.githubusercontent.com/jskufca/advanced_stat/dev/data/ma131_grades_4239.csv") %>% janitor::clean_names()
+# Homogeneity example
+```
+
+```{r}
+# Options needed to (sometimes) prevent errors on PC
+# options(ffbatchbytes = 1024ˆ2 * 128); options(ffmaxbytes = 1024ˆ2 * 128 * 32)
+df1 %>% 
+     tableplot(select = c(grade,grd_pt_unt,unit_taken), pals = list("BrBG"),
+sample = F, colorNA_num = "orange", numMode = "MB-ML")
+```
+```{r}
+df2=df1 %>% 
+     mutate(gradef=factor(grade), unitf=factor(unit_taken))
+```
+
+```{r}
+df2table <- tally(~ gradef + unitf, data = df2)
+df2table
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+mosaicplot(unitf~gradef, data = df2, shade = T)
+```
+
+
