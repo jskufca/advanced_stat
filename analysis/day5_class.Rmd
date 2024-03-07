@@ -1,0 +1,208 @@
+---
+title: "Day 5 and 6 class"
+subtitle: "ANOVA"
+author: "Joe Skufca"
+date:  "2024-01-17"
+output: html_notebook
+---
+
+Working through chapter 3 of *Greenwood*.
+
+## Packages that we will typically load
+
+
+Here are three of my favorites that I always load.
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(here)
+
+library(readxl) #for data ease
+library(mosaic)
+library(yarrr)
+```
+
+
+
+## Data load
+
+`readr` can (often) read directly from a URL if the URL is simply a data file.
+
+We clean the names and convert non-numeric variables to factor.
+
+```{r}
+dd <- read_csv("http://www.math.montana.edu/courses/s217/documents/Walker2014_mod.csv") %>% 
+     clean_names() %>%
+     mutate(across(where(is.character),factor))
+```
+
+Take the time to label variables and the plot.   It will pay divididends in the future.
+
+```{r}
+dd %>% ggplot(mapping = aes(x = distance)) +
+     geom_histogram(bins = 20, fill = "grey") +
+     geom_rug(alpha = 0.1) +
+     geom_boxplot(color = "tomato", width = 30) +
+# width used to scale boxplot to make it more visible
+     theme_bw() +
+     labs(title = "Plot of Passing Distances",
+          x = "Distance(cm)",y="Count")
+```
+
+
+Our pirate plot where I have included an option to explore with less data.
+
+```{r}
+pirateplot(distance ~ condition, 
+           data = dd |> slice_sample(prop=1,by=condition), 
+           inf.method = "ci", inf.disp = "line")
+```
+### Section 3.2 ANOVA
+
+```{r}
+lm2 <- lm(distance ~ condition, data = dd)
+summary(lm2)$coefficients
+```
+
+From above, some differences seem to have STRONG evidence supporting a difference.
+
+
+
+Modeling with no constant.   Everything is referenced to mean of 0.
+
+```{r}
+lm1 <- lm(distance ~ condition - 1, data = dd)
+summary(lm1)$coefficients
+```
+We see strong evidence that none of the group means was 0.
+
+#### effects package
+
+```{r}
+summary(lm2)$coefficients
+```
+
+
+```{r}
+library(effects)
+plot(allEffects(lm2))
+```
+
+```{r}
+lm3 <- lm(distance ~ 1, data = dd)
+summary(lm3)$coefficients
+```
+## Sec 3.3 one-way ANOVA
+
+```{r}
+anova(lm2)
+```
+
+
+```{r}
+Tobs <- anova(lm(distance ~ condition, data = dd))[1,2]
+Tobs
+```
+
+Shuffle test:
+
+```{r}
+#need code here
+```
+
+
+```{r}
+B <- 1000
+
+Tstar =replicate(B, {
+     anova(lm(distance ~ shuffle(condition), data = dd))[1,2]
+}) 
+
+
+
+```
+
+
+
+```{r}
+tibble(Tstar) %>% ggplot(aes(x = Tstar)) +
+geom_histogram(aes(y = ..ncount..), bins = 20, col = 1, fill = "skyblue") +
+geom_density(aes(y = ..scaled..)) +
+theme_bw() +
+labs(y = "Density") +
+geom_vline(xintercept = Tobs, col = "red", lwd = 2) +
+stat_bin(aes(y = ..ncount.., label = ..count..), bins = 20,
+geom = "text", vjust = -0.75)
+```
+
+```{r}
+pdata(Tstar, Tobs, lower.tail = F)[[1]]
+```
+##### parametric p-value (F statistic)
+
+```{r}
+anova(lm2)
+```
+
+## 3.4 ANOVA diagnostics
+
+```{r}
+par(mfrow = c(2,2))  # show plots in a 2x2 array
+plot(lm2)
+```
+
+### 3.5 Toothgrowth
+
+```{r}
+tooth_growth=as_tibble(ToothGrowth) %>% clean_names()
+```
+
+```{r}
+tally(~ supp+dose, data = tooth_growth) #Supplement Type (VC or OJ)
+```
+
+```{r}
+tooth_growth2 <- tooth_growth %>% mutate(treat = interaction(supp, dose))
+# New variable that combines supplement type and dosage
+tally(~ treat, data = tooth_growth2)
+
+```
+```{r}
+pirateplot(len ~ treat, data = tooth_growth2, inf.method = "ci", inf.disp = "line",
+ylab = "Odontoblast Growth in microns", point.o = .7)
+```
+
+
+```{r}
+m2 <- lm(len ~ treat, data = tooth_growth2)
+
+plot(m2)
+
+```
+
+
+# Below here not fixed
+
+
+
+```{r}
+lmP <- lm(distance ~ permuted_condition, data = perm1)
+coef(lmP)[2]
+
+```
+
+```{r}
+B <- 1000
+
+Tstar <- matrix(NA, nrow = B)
+#Tstar
+
+for (b in (1:B)){
+lmP <- lm(distance ~ shuffle(condition), data = dsample)
+Tstar[b] <- coef(lmP)[2]
+#print(Ts)
+}
+
+```
+

@@ -1,0 +1,183 @@
+---
+title: "Day 13 and 14 class"
+subtitle: "MLR"
+author: "Joe Skufca"
+date:  "2024-02-11"
+output: html_notebook
+---
+
+Materials from Chapter 8.
+
+## Packages that we will typically load
+
+
+Here are three of my favorites that I always load, +GGally.
+
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(here)
+library(gridExtra)
+
+library(GGally) #for data ease
+
+```
+
+
+## Read Data
+
+```{r}
+snotel_s <- read_csv("http://www.math.montana.edu/courses/s217/documents/snotel_s.csv")
+```
+
+```{r message=FALSE, warning=FALSE}
+snotel_s %>% ggpairs(columns = c(4:6,3)) +
+theme_bw()
+```
+
+
+```{r}
+m1 <- lm(Snow.Depth ~ Elevation, data = snotel_s)
+m2 <- lm(Snow.Depth ~ Min.Temp, data = snotel_s)
+m3 <- lm(Snow.Depth ~ Max.Temp, data = snotel_s)
+library(effects)
+plot(allEffects(m1, residuals = T), main = "SLR: Effect of Elevation")
+plot(allEffects(m2, residuals = T), main = "SLR: Effect of Min Temp")
+plot(allEffects(m3, residuals = T), main = "SLR: Effect of Max Temp")
+```
+
+```{r}
+summary(m1)
+summary(m2)
+summary(m3)
+```
+
+
+
+```{r}
+m4 <- lm(Snow.Depth ~ Elevation + Min.Temp + Max.Temp, data = snotel_s)
+summary(m4)
+```
+
+```{r}
+plot(allEffects(m4, residuals = T), main = "MLR model with Elev, Min, & Max Temps")
+
+```
+
+
+## 8.2 validity
+
+```{r}
+par(mfrow = c(2,2), oma = c(0,0,2,0))
+plot(m4, pch = 16, sub.caption = "")
+title(main="Diagnostics for m4", outer=TRUE)
+```
+
+```{r}
+snotel_s %>% slice(9,10)
+```
+
+```{r}
+predict(m4,snotel_s %>% slice(9,10))
+```
+
+```{r}
+library(broom)
+tidy(m4)
+```
+
+```{r}
+augment(m4)
+```
+
+```{r}
+m5 <- lm(Snow.Depth ~ Elevation + Min.Temp + Max.Temp, data = snotel_s %>% slice(-9))
+summary(m5)
+```
+
+```{r}
+plot(allEffects(m5, residuals = T), main = "MLR model with NE Ent. Removed")
+```
+
+```{r}
+par(mfrow = c(2,2), oma = c(0,0,2,0))
+plot(m5, pch = 16, sub.caption = "")
+title(main="Diagnostics for m5", outer=TRUE)
+```
+
+```{r}
+augment(m5)
+
+```
+
+
+```{r}
+m6 <- lm(Snow.Depth ~ Elevation + Min.Temp + Max.Temp, data = snotel_s %>% slice(-c(9,22)))
+summary(m6)
+par(mfrow = c(2,2), oma = c(0,0,2,0))
+plot(m6, pch = 16, sub.caption = "")
+title(main="Diagnostics for m6", outer=TRUE)
+```
+
+```{r}
+plot(allEffects(m6, residuals = T), main = "MLR model with n = 23")
+```
+
+```{r}
+set.seed(307)
+snotel_final <- snotel_s %>% slice(-c(9,22))
+snotel_final <- snotel_final %>%
+#Creates first and second set of simulated responses
+mutate(SimulatedSnow = simulate(m6)[[1]],
+SimulatedSnow2 = simulate(m6)[[1]]
+)
+
+
+
+```
+
+```{r}
+r1 <- snotel_final %>% ggplot(aes(x = Elevation, y = Snow.Depth)) +
+geom_point() +
+theme_bw() +
+labs(title = "Real Responses")
+
+r2 <- snotel_final %>% ggplot(aes(x = Max.Temp, y = Snow.Depth)) +
+geom_point() +
+theme_bw() +
+labs(title = "Real Responses")
+r3 <- snotel_final %>% ggplot(aes(x = Min.Temp, y = Snow.Depth)) +
+geom_point() +
+theme_bw() +
+labs(title = "Real Responses")
+
+s1 <- snotel_final %>% ggplot(aes(x = Elevation, y = SimulatedSnow)) +
+geom_point(col = "forestgreen") +
+theme_bw() +
+labs(title = "First Simulated Responses")
+
+s2 <- snotel_final %>% ggplot(aes(x = Max.Temp, y = SimulatedSnow)) +
+geom_point(col = "forestgreen") +
+theme_bw() +
+labs(title = "First Simulated Responses")
+s3 <- snotel_final %>% ggplot(aes(x = Min.Temp, y = SimulatedSnow)) +
+geom_point(col = "forestgreen") +
+theme_bw() +
+labs(title = "First Simulated Responses")
+s12 <- snotel_final %>% ggplot(aes(x = Elevation, y = SimulatedSnow2)) +
+geom_point(col = "skyblue") +
+theme_bw() +
+labs(title = "Second Simulated Responses")
+s22 <- snotel_final %>% ggplot(aes(x = Max.Temp, y = SimulatedSnow2)) +
+geom_point(col = "skyblue") +
+theme_bw() +
+labs(title = "Second Simulated Responses")
+s32 <- snotel_final %>% ggplot(aes(x = Min.Temp, y = SimulatedSnow2)) +
+geom_point(col = "skyblue") +
+theme_bw() +
+labs(title = "Second Simulated Responses")
+
+grid.arrange(r1, r2, r3, s1, s2, s3, s12, s22, s32, ncol = 3)
+```
+

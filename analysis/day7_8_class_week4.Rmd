@@ -1,0 +1,361 @@
+---
+title: "Day 7 and 8 (week4) class"
+subtitle: "Two-way ANOVA"
+author: "Joe Skufca"
+date:  "2024-02-05"
+output: html_notebook
+---
+
+Working through chapter 4 of *Greenwood*.
+
+## Packages that we will typically load
+
+
+Here are three of my favorites that I always load.
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(here)
+
+library(readxl) #for data ease
+library(mosaic)
+library(yarrr)
+```
+ANOVA chapter uses three new packages:
+```{r}
+library(effects)
+library(car)
+library(catstats)
+```
+
+
+
+## Pretend data
+
+```{r}
+pt <- read_csv("http://www.math.montana.edu/courses/s217/documents/pt.csv") %>%
+     mutate(across(brand:drops,factor)) %>%
+     clean_names() %>%
+     select(-dropsf)
+```
+
+## 4.2
+
+
+
+```{r}
+tally(brand ~ drops, data = pt)
+```
+
+```{r}
+favstats(responses ~ brand + drops, data = pt)
+```
+
+### pg 137
+
+```{r}
+set.seed(12)
+pirateplot(responses ~ brand * drops, data = pt, xlab = "Drops", ylab = "Time",
+inf.method = "ci", inf.disp = "line", theme = 2, point.o = 1)
+```
+
+```{r}
+intplot(responses ~ brand * drops, data = pt)
+```
+
+```{r}
+intplot(responses ~ drops * brand, data = pt)
+```
+
+### pg 139
+```{r}
+intplotarray(responses ~ drops * brand, data = pt)
+```
+
+
+## Sec 4.3  
+
+
+```{r}
+m1 <- lm(responses ~ brand * drops, data = pt)
+anova(m1)
+```
+
+```{r}
+plot(allEffects(m1), grid = T, multiline = T, lty = c(1:2), ci.style = "bars")
+```
+
+
+```{r}
+m2 <- lm(responses ~ brand + drops, data = pt)
+anova(m2)
+```
+
+```{r}
+Anova(m2)
+```
+
+
+#### Illustrate with subsample
+
+```{r}
+pt_sub=pt |> slice_sample(prop=.9)
+m2_1 <- lm(responses ~ brand + drops, data = pt_sub)
+m2_2 <- lm(responses ~ drops + brand, data = pt_sub)
+anova(m2_1)
+anova(m2_2)
+```
+
+```{r}
+pt_sub=pt |> slice_sample(prop=.9)
+m2_1 <- lm(responses ~ brand + drops, data = pt_sub)
+m2_2 <- lm(responses ~ drops+brand, data = pt_sub)
+Anova(m2_1)
+Anova(m2_2)
+```
+```{r}
+
+#pt_sub=pt |> slice_sample(prop=.9)
+m2_1f <- lm(responses ~ brand + drops, data = pt)
+m2_2f <- lm(responses ~ drops+brand, data = pt)
+anova(m2_1f)
+anova(m2_2f)
+
+```
+
+### pg 146
+
+```{r}
+summary(m2)
+```
+
+```{r}
+plot(allEffects(m2, residuals = T))
+```
+
+
+## 4.4  Guinea pig
+
+```{r}
+ToothGrowth=ToothGrowth |>
+     as_tibble() |>
+     clean_names()
+```
+
+
+Look at the data, thinking about interractions:
+
+```{r}
+par(mfrow = c(1,2))
+
+pirateplot(len ~ supp * dose, data = ToothGrowth, ylim = c(0,35),
+main = "Pirate-plot", xlab = "Dosage", ylab = "Odontoblast Growth",
+inf.method = "ci", inf.disp = "line", theme = 2)
+
+intplot(len ~ supp * dose, data = ToothGrowth, col = c(1,2),
+main = "Interaction Plot", ylim = c(0,35))
+```
+Balanced?
+
+```{r}
+tabyl(ToothGrowth,supp,dose)
+```
+
+
+
+Test for an interraction:
+
+```{r}
+TG1 <- lm(len ~ supp * dose, data = ToothGrowth)
+Anova(TG1)
+
+```
+
+```{r}
+ToothGrowth <- ToothGrowth %>% mutate(dosef = factor(dose))
+TG2 <- lm(len ~ supp * dosef, data = ToothGrowth)
+Anova(TG2)
+```
+
+Keep the interaction - and focus on the interaction.
+
+```{r}
+par(mfrow = c(2,2))
+plot(TG2, pch = 16)
+```
+Equal variances?
+
+```{r}
+plot(allEffects(TG2, residuals = T, x.var = "dosef"))
+```
+
+```{r}
+summary(TG2)$coefficients
+```
+
+```{r}
+tg2 <- aov(len ~ supp * dosef, data = ToothGrowth)
+```
+
+
+```{r}
+summary(TG2)
+summary(tg2)
+```
+
+```{r}
+#summary(TG2)$coefficients
+tg2$coefficients
+```
+
+## 4.5 The Psychology of Debt
+
+
+
+```{r}
+library(faraway)
+data(debt)
+
+debt <- debt |>
+     as_tibble() %>% 
+     mutate(incomegp = factor(incomegp),
+                                cigbuy = factor(cigbuy)) 
+     
+debtc <- debt %>% drop_na()
+
+debtRc <- debt %>% drop_na(incomegp, cigbuy, prodebt)
+```
+
+
+```{r}
+
+
+pirateplot(prodebt ~ cigbuy * incomegp, data = debtRc, 
+main = "Pirate-plot", 
+inf.method = "ci", inf.disp = "line", theme = 2)
+
+```
+
+```{r}
+
+
+intplotarray(prodebt ~ cigbuy * incomegp, data = debtRc, col = c(1,3,4,5,6), lwd = 2)
+```
+
+```{r}
+tally(cigbuy ~ incomegp, data = debtRc)
+```
+
+
+```{r}
+debt1 <- lm(prodebt ~ incomegp * cigbuy, data = debtRc)
+Anova(debt1)
+```
+
+```{r}
+par(mfrow = c(2,2))
+plot(debt1, pch = 16)
+```
+
+#### Continuing without interaction
+
+
+
+
+
+
+
+```{r}
+debt1r <- lm(prodebt ~ incomegp + cigbuy, data = debtRc)
+par(mfrow = c(2,2))
+plot(debt1r, pch = 16)
+```
+
+```{r}
+plot(allEffects(debt1r, residuals = T))
+```
+
+```{r}
+Anova(debt1r)
+```
+
+```{r}
+plot(allEffects(debt1r))
+```
+
+```{r}
+summary(debt1r)$coefficients
+```
+
+Should we do Tukey?
+
+## 4.6  Un-replicated designs
+
+```{r}
+ptR <- read_csv("http://www.math.montana.edu/courses/s217/documents/ptR.csv")
+ptR <- ptR %>% mutate(dropsf = factor(drops),
+brand = factor(brand))
+ptR
+```
+
+```{r}
+intplot(responses ~ brand * dropsf, data = ptR, lwd = 2)
+```
+
+### Pg 165
+
+```{r}
+anova(lm(responses ~ dropsf * brand, data = ptR))
+```
+
+```{r}
+norep1 <- lm(responses ~ dropsf + brand, data = ptR)
+Anova(norep1)
+```
+
+```{r}
+plot(allEffects(norep1))
+```
+
+```{r}
+#remotes::install_github("mtennekes/tabplot")
+```
+
+
+
+```{r}
+dd <- read_csv("http://www.math.montana.edu/courses/s217/documents/Walker2014_mod.csv")
+dd <- dd %>% mutate(Condition = factor(Condition),
+Condition2 = reorder(Condition, Distance, FUN = mean),
+Shirt = factor(Shirt),
+Helmet = factor(Helmet),
+Pants = factor(Pants),
+Gloves = factor(Gloves),
+ReflectClips = factor(ReflectClips),
+Backpack = factor(Backpack)
+)
+```
+```{r}
+library(tabplot)
+library(RColorBrewer)
+# Options (sometimes) needed to prevent errors on PC
+# options(ffbatchbytes = 1024ˆ2 * 128); options(ffmaxbytes = 1024ˆ2 * 128 * 32)
+tableplot(dd[,-1], sort = Condition2, pals = list("BrBG"), sample = F,
+colorNA_num = "pink", numMode = "MB-ML")
+```
+
+
+```{r}
+overtake_int <- lm(Distance ~ Helmet * ReflectClips, data = dd)
+summary(overtake_int)
+```
+
+```{r}
+tally(Helmet ~ ReflectClips, data = dd)
+```
+
+```{r}
+aov(Distance ~ Helmet * ReflectClips, data = dd) 
+```
+

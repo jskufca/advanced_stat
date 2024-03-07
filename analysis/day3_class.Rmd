@@ -1,0 +1,146 @@
+---
+title: "Day 3 class"
+subtitle: "Re-Introduction"
+author: "Joe Skufca"
+date:  "2024-01-17"
+output: html_notebook
+---
+
+Working through chapter 2 of *Greenwood*.
+
+## Packages that we will typically load
+
+
+Here are three of my favorites that I always load.
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(here)
+
+library(readxl) #for data ease
+library(mosaic)
+library(yarrr)
+```
+
+
+
+## Data load
+
+`readr` can (often) read directly from a URL if the URL is simply a data file.
+
+```{r}
+dd <- read_csv("http://www.math.montana.edu/courses/s217/documents/Walker2014_mod.csv") %>% clean_names()
+```
+
+```{r}
+dd1=dd %>%
+     mutate(across(where(is.character),factor))
+```
+
+```{r}
+summary(dd1)
+```
+
+Take the time to label variables and the plot.   It will pay divididends in the future.
+
+```{r}
+dd %>% ggplot(mapping = aes(x = distance)) +
+     geom_histogram(bins = 20, fill = "grey") +
+     geom_rug(alpha = 0.1) +
+     geom_boxplot(color = "tomato", width = 30) +
+# width used to scale boxplot to make it more visible
+     theme_bw() +
+     labs(title = "Plot of Passing Distances",
+          x = "Distance(cm)",y="Count")
+```
+
+
+Note that we now use "density" for the histogram, and add a density curve.
+
+```{r}
+dd1 %>% ggplot(mapping = aes(x = distance)) +
+     geom_histogram(bins = 20, fill = "grey",aes(y = ..density..)) +
+     geom_density(fill="purple",alpha=.1)+
+     geom_rug(alpha = 0.1) +
+# width used to scale boxplot to make it more visible
+     theme_bw() +
+     labs(title = "Plot of Passing Distances",
+          x = "Distance(cm)",y="Count")
+```
+
+```{r}
+library(yarrr)
+pirateplot(distance ~ condition, data = dd1, inf.method = "ci", inf.disp = "line")
+```
+## subsetting data
+
+```{r}
+ddsub <- dd1 %>%
+filter(condition %in% c("casual","commute")) %>%
+select(distance, condition)
+
+```
+
+```{r}
+ddsub <- ddsub %>% mutate(condition = factor(condition))
+```
+
+```{r}
+mean(distance ~ condition, data = ddsub)
+```
+
+### exploring a small sample
+
+```{r}
+set.seed(9432)
+s1 <- sample(ddsub %>% filter(condition %in% "commute"), size = 15)
+s2 <- sample(ddsub %>% filter(condition %in% "casual"), size = 15)
+dsample <- rbind(s1, s2)
+mean(distance ~ condition, data = dsample)
+
+```
+```{r}
+perm1 <- dsample %>%
+select(distance, condition) %>%
+mutate(permuted_condition = shuffle(condition))
+# To force the tibble to print out all rows in data set -- not used often
+#data.frame(Perm1)
+
+```
+
+
+```{r}
+mean(distance ~ permuted_condition, data = perm1)
+```
+
+```{r}
+lm1 <- lm(distance ~ condition, data = dsample)
+summary(lm1)
+
+```
+
+```{r}
+coef(lm1)[2]
+```
+
+```{r}
+lmP <- lm(distance ~ permuted_condition, data = perm1)
+coef(lmP)[2]
+
+```
+
+```{r}
+B <- 1000
+
+Tstar <- matrix(NA, nrow = B)
+#Tstar
+
+for (b in (1:B)){
+lmP <- lm(distance ~ shuffle(condition), data = dsample)
+Tstar[b] <- coef(lmP)[2]
+#print(Ts)
+}
+
+```
+

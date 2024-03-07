@@ -1,0 +1,52 @@
+---
+title: "Day 11 (week 6) class"
+subtitle: "Ch5 - contingency tables"
+author: "Joe Skufca"
+date:  "2024-02-11"
+output: html_notebook
+---
+
+Analysis of some MA131 grade data from Fall 2023.
+
+## Packages that we will typically load
+
+
+Here are three of my favorites that I always load.
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(here)
+
+library(GGally) #for data ease
+
+```
+
+
+
+```{r}
+treadmill <- read_csv("http://www.math.montana.edu/courses/s217/documents/treadmill.csv") |>
+     clean_names()
+library(psych)
+treadmill %>% select(-1) %>% ggpairs()
+```
+
+```{r}
+treadmill %>% ggplot(aes(run_time,tread_mill_ox)) +
+     geom_point()+
+     geom_smooth(method="lm")+
+     theme_minimal()
+```
+
+```{r}
+corr.test(treadmill)
+```
+```{r}
+m1=lm(tread_mill_ox~run_time,data=treadmill)
+summary(m1)
+```
+
+```{r}
+predict(m1,newdata = tibble(run_time=c(14,16)))
+```
+

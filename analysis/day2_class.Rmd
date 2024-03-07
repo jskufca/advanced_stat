@@ -1,0 +1,131 @@
+---
+title: "Day 2 class"
+subtitle: "Refresher on basic Rstudio operations"
+author: "Joe Skufca"
+date:  "2024-01-17"
+output: html_notebook
+---
+
+## Packages that we will typically load
+
+
+Here are three of my favorites that I always load.
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(here)
+```
+
+I am pursuing materials from Greenwoods book.
+
+
+As we progress, we will add other packages that are needed.   For example, I know I intend to read an excel file, so:
+
+```{r}
+library(readxl)
+```
+
+Additionally, Greenwood uses the mosaic package:
+
+```{r}
+library(mosaic)
+```
+
+## Data load
+
+Let's play with the treadmill dataset:
+
+```{r}
+treadmill=read_excel(here("data","treadmill.xls")) %>% 
+     clean_names()
+```
+
+From page 11, we use the `favstats` function:
+
+```{r}
+treadmill %>% favstats(~run_time,data=.)
+```
+
+From page 18:
+
+```{r}
+ggplot(data = treadmill, mapping = aes(x = run_time)) +
+geom_histogram(fill = "grey", bins = 8) +
+geom_boxplot(color = "tomato") +
+geom_rug(color = "skyblue", sides = "b", aes(y = 0), position = "jitter") +
+theme_light()
+```
+
+# Practice problems
+
+1.1 (Creating rmarkdown and loading data) is already accomplished.
+
+### 1.2
+
+Read in the treadmill data set discussed previously and find the mean and SD of the Ages (Age variable)
+and Body Weights (BodyWeight variable). In studies involving human subjects, it is common to report a
+summary of characteristics of the subjects. Why does this matter? Think about how your interpretation of
+any study of the fitness of subjects would change if the mean age (same spread) had been 20 years older or
+35 years younger.
+
+
+```{r}
+mean(treadmill$age)
+sd(treadmill$age)
+
+mean(treadmill$body_weight)
+sd(treadmill$body_weight)
+```
+
+
+
+### 1.3. 
+
+How does knowing about the distribution of results for Age and BodyWeight help you understand the
+results for the Run Times discussed previously?
+
+```{r}
+ggplot(data = treadmill, mapping = aes(x = age)) +
+geom_histogram(fill = "grey", bins = 8) +
+geom_boxplot(color = "tomato") +
+geom_rug(color = "skyblue", sides = "b", aes(y = 0), position = "jitter") +
+theme_light()
+
+
+ggplot(data = treadmill, mapping = aes(x = body_weight)) +
+geom_histogram(fill = "grey", bins = 8) +
+geom_boxplot(color = "tomato") +
+geom_rug(color = "skyblue", sides = "b", aes(y = 0), position = "jitter") +
+theme_light()
+```
+
+### 1.5.
+The weight responses are in kilograms and you might prefer to see them in pounds. The conversion is
+lbs = 2.205*kgs. Create a new variable in the treadmill tibble called BWlb using this code:
+
+
+```{r}
+treadmill$bwlb=2.205*treadmill$body_weight
+
+mean(treadmill$bwlb)
+sd(treadmill$bwlb)
+
+```
+
+### 1.6. 
+Make histograms and boxplots of the original BodyWeight and new BWlb variables, both using base
+R plots and using ggplot2. Discuss aspects of the distributions that changed and those that remained the
+same with the transformation from kilograms to pounds. What does this tell you about changing the units of
+a variable in terms of its distribution?
+
+
+```{r}
+ggplot(data = treadmill, mapping = aes(x = bwlb)) +
+geom_histogram(fill = "grey", bins = 8) +
+geom_boxplot(color = "tomato") +
+geom_rug(color = "skyblue", sides = "b", aes(y = 0), position = "jitter") +
+theme_light()
+
+
+```

@@ -1,0 +1,280 @@
+---
+title: "Chap 8 exercise"
+subtitle: "MLR"
+author: "Joe Skufca"
+date:  "2024-03-06"
+output: html_notebook
+---
+
+Practice problems from Chapter 8 has only one problem:
+
+## 8.1. Treadmill data analysis 
+The original research goal for the treadmill data set used for practice problems
+in the last two chapters was to replace the costly treadmill oxygen test with a cheap to find running time
+measurement but there were actually quite a few variables measured when the run time was found – maybe
+we can replace the treadmill test result with a combined prediction built using a few variables using the MLR
+techniques. The following code will get us re-started in this situation.
+
+## Packages that we will typically load
+
+
+Here are three of my favorites that I always load, +GGally.
+
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(here)
+library(gridExtra)
+library(broom)
+
+library(GGally) #for data ease
+library(car)
+library(effects)
+```
+
+
+## Read Data
+
+> Since I do not have to follow code from the book, I choose to use my standard formatting for variables.
+> As such, I juse janaitor to rename my variables.
+
+```{r}
+treadmill <- read_csv("http://www.math.montana.edu/courses/s217/documents/treadmill.csv") |>
+     clean_names()
+```
+
+> The book has us compute a first linear model called `tm1`
+
+```{r}
+tm1 <- lm(tread_mill_ox ~ run_time, data = treadmill)
+summary(tm1)
+```
+
+
+### 8.1.1. 
+Fit the MLR that also includes the running pulse (RunPulse), the resting pulse (RestPulse), body
+weight (BodyWeight), and Age (Age) of the subjects. Report and interpret the R2
+for this model.
+
+```{r}
+tm2=lm(tread_mill_ox ~ run_time+
+            run_pulse+rest_pulse+body_weight+age,
+       data=treadmill)
+summary(tm2)
+```
+The resultant $R^2$ value is
+
+```{r}
+glance(tm2)$r.squared
+```
+
+### 8.1.2. 
+Compare the R2 and the adjusted R2
+to the results for the SLR model that just had RunTime in the
+model. What do these results suggest?
+
+```{r}
+glance(tm1)$adj.r.squared
+glance(tm2)$adj.r.squared
+```
+
+The MLR explains more of the variances, even when correcting fot the additional complexity of the model.  
+
+We note that it may still not be the *best* model, as there may be a smaller model that does better.  
+
+### 8.1.3. 
+
+Interpret the estimated RunTime slope coefficients from the SLR model and this MLR model. Explain
+the differences in the estimates.
+
+```{r}
+tm1$coefficients
+tm2$coefficients
+```
+
+* In the SLR, for a one minute increase in run_time we estimate that the mean tread_mill_ox will decrease by 3.3 units.
+* In the MLR, for a one minute increase in run_time, we estimate a decrease of 2.7 units in oxygen, *after controlling for the other variables in the model (run_pulse, rest_pulse, body_weight, and age).
+
+
+### 8.1.4. 
+Find the VIFs for this model and discuss whether there is an issue with multicollinearity noted in these
+results.
+```{r}
+vif(tm2)
+```
+
+Although there is some light colineartiy, the vif values for all variables are below 1.6,
+indicating that we should have no siginficant concern about colinearity.
+
+### 8.1.5. 
+
+Report the value for the overall F-test for the MLR model and interpret the result.
+
+
+```{r}
+summary(tm2)
+```
+
+
+With an overall F-statistic of 22.41 and a p-value of 1.7e-8,  there is strong evidence against the null 
+hypothesis that *no explanatory varialbes should be included*.   
+
+
+### 8.1.6. 
+Drop the variable with the largest p-value in the MLR model and re-fit it. Compare the resulting R2
+and adjusted R2 values to the others found previously.
+
+```{r}
+tm3=lm(tread_mill_ox ~ run_time+
+            run_pulse+body_weight+age,
+       data=treadmill)
+summary(tm3)
+```
+
+Dropping rest_pulse, we find that adjusted R-sqared increases from .7811 to .7883 .
+
+
+### 8.1.7. 
+Use the dredge function as follows to consider some other potential reduced models and report the top
+two models according to adjusted R2 values. What model had the highest R2.
+Also discuss and compare
+the model selection results provided by the delta AICs here
+
+```{r}
+library(MuMIn)
+options(na.action = "na.fail") #Must run this code once to use dredge
+md=dredge(tm2, rank = "AIC",
+       extra = c("R^2",
+                 "adjR^2",
+                 myadjRsq = function(x) summary(x)$adj.r.squared
+                 )) %>% as_tibble() %>% clean_names()
+
+md
+```
+
+The top two models (by adjusted R^2 are):
+
+```{r}
+md %>% slice_max(n=2, order_by = myadj_rsq)
+```
+
+> Note that the adj R^2 as computed by MuMIn is different than computed by lm.
+
+The top models exludes both body_weigh and rest_pusle, while the second best excludes just rest_pulse.
+
+
+These selected modes are the same top two as indicated by AIC.
+
+### 8.1.8. 
+For one of the models, interpret the Age slope coefficient. Remember that only male subjects between
+38 and 57 participated in this study. Discuss how this might have impacted the results found as compared to
+a more general population that could have been sampled from.
+
+
+
+The age coefficient for the top model indicates that for a 1 year increase in age,
+treadmill_ox will decrease by about 0.26, controlling for run_pulse and run_time.
+
+As all the the subjects are likely to be "past their prime" (in the stages of phycial decline with age),
+the indicated performance decline is not unexpected.  
+
+Had we included a broader spectrum of aged subjects (say 18-60), we might reasonably find that 
+performance increases with age for younger men, while decreasing with age for older men.
+
+### 8.1.9. 
+The following code creates a new three-level variable grouping the ages into low, middle, and high for
+those observed. The scatterplot lets you explore whether the relationship between treadmill oxygen and run
+time might differ across the age groups.
+
+```{r}
+treadmill2 <- treadmill %>% mutate(ageb = factor(cut(age, breaks = c(37, 44.5, 50.5, 58))))
+summary(treadmill2$ageb)
+treadmill2 %>%
+     ggplot(mapping = aes(
+          x = run_time,
+          y = tread_mill_ox,
+          color = ageb,
+          shape = ageb
+     )) +
+     geom_point(size = 1.5, alpha = 0.5) +
+     geom_smooth(method = "lm") +
+     theme_bw() +
+     scale_color_viridis_d(end = 0.8) 
+
+#+
+#     facet_grid(rows = vars(ageb))
+```
+
+### 8.1.10. 
+Fit the MLR that contains a RunTime by Ageb interaction – do not include any other variables.
+Compare the R2 and adjusted R2
+results to previous models.
+
+```{r}
+tm4=lm(tread_mill_ox ~run_time*ageb,data=treadmill2)
+
+summary(tm4)
+glance(tm4)
+```
+
+```{r}
+glance(tm1)
+```
+
+```{r}
+tm5=lm(tread_mill_ox ~run_time+age,data=treadmill2)
+glance(tm5)
+```
+
+Based on both R-squared and adjusted R-sq, we see that the model which adds age categories
+performs better than the SLR model without age, but also better than MLR with both runtime and age.
+
+
+I will also look at the interaction model (using age) to see if it helps:
+
+```{r}
+tm6=lm(tread_mill_ox ~run_time*age,data=treadmill2)
+glance(tm6)
+```
+
+Interestingly, this model does not perform as well as the age categorized model.
+
+### 8.1.11. 
+Find and report the results for the F-test that assesses evidence relative to the need for different
+slope coefficients.
+
+```{r}
+Anova(tm4)
+```
+
+Performing an Anova calculation on `tm4`, we see that the F-test associated with the
+interaction (run_time:ageb) results in a p-value of .3904, showing little evidence to
+reject the null hypothesis that all slopes are the same.
+
+### 8.1.13. 
+Fit the additive model with RunTime and predict the mean treadmill oxygen values for subjects with
+run times of 11 minutes in each of the three Ageb groups.
+
+```{r}
+tm4_add=lm(tread_mill_ox ~run_time+ageb,data=treadmill2)
+
+summary(tm4)
+```
+```{r}
+newdata=tibble(run_time=11,ageb=levels(treadmill2$ageb))
+predict(tm4_add,newdata)
+```
+
+### 8.1.14. 
+Find the F-test results for the binned age variable in the additive model. Report and interpret those
+results.
+
+```{r}
+Anova(tm4_add)
+```
+
+There is weak evidence against the null-hypothesis that the intercept is the same for all three groups.
+
+We note that based on model performance (as a assed my adjusted R^2) we would use separate intercepts.
+

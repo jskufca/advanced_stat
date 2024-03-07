@@ -1,0 +1,344 @@
+---
+title: "Day 11 (week 6) class"
+subtitle: "Ch5 - contingency tables"
+author: "Joe Skufca"
+date:  "2024-02-11"
+output: html_notebook
+---
+
+Working through chapter 5 of *Greenwood*.
+
+## Packages that we will typically load
+
+
+Here are three of my favorites that I always load.
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(here)
+
+library(readxl) #for data ease
+library(mosaic)
+library(yarrr)
+```
+ANOVA chapter added four new packages:
+```{r}
+library(effects)
+library(car)
+library(catstats)
+library(tabplot)
+```
+
+And for chapter 5, we add:
+
+```{r}
+library(vcd)  #visualizing categorical data
+library(RColorBrewer) # colors
+library(poLCA) # for a dataset
+library(survey) # we will use for a dataset, but supports analysis of survey data
+```
+
+## Sec 5.1
+
+```{r}
+data(Arthritis)
+ #Double-blind clinical trial with treatment and control groups
+
+Arthritis <- Arthritis  %>% as_tibble()
+# Homogeneity example
+
+# Options needed to (sometimes) prevent errors on PC
+# options(ffbatchbytes = 1024ˆ2 * 128); options(ffmaxbytes = 1024ˆ2 * 128 * 32)
+tableplot(Arthritis, select = c(Treatment, Improved, Sex, Age), pals = list("BrBG"),
+sample = F, colorNA_num = "orange", numMode = "MB-ML")
+```
+
+```{r}
+dft=Arthritis %>% tabyl(Treatment,Improved)
+dft
+```
+
+```{r}
+tally(Treatment~Improved,data=Arthritis, margins=TRUE)
+```
+```{r}
+tally(~Treatment+Improved,data=Arthritis, margins=TRUE)
+```
+
+```{r}
+par(mai = c(1.5,1.5,0.82,0.42), #Adds extra space to bottom and left margin,
+las = 1, #Rotates text labels, optional code
+mgp = c(6,1,0)) #Adds space to labels, order is axis label, tick label, tick mark
+plot(Improved ~ Treatment, data = Arthritis,
+main = "Stacked Bar Chart of Arthritis Data")
+```
+
+## 5.2 Homogeneity test hypotheses
+
+## 5.3 Independence test
+
+```{r}
+data(election, package = "poLCA")
+election <- as_tibble(election) 
+# Subset variables and remove missing values
+election2 <- election %>% 
+     dplyr::select(PARTY, VOTE3) %>%
+mutate(VOTEF = factor(VOTE3)) %>%
+drop_na()
+levels(election2$VOTEF) <- c("Gore", "Bush", "Other") #Replace 1,2,3 with meaningful names
+levels(election2$VOTEF) #Check new names of levels in VOTEF
+```
+
+```{r}
+electable <- tally(~ PARTY+VOTEF, data = election2) #Contingency table
+electable
+par(las = 1) # horizontal labels
+mosaicplot(electable, main = "Mosaic plot of observed results")
+electable <- tally(~ VOTEF+PARTY, data = election2) #Contingency table
+electable
+par(las = 1) # horizontal labels
+mosaicplot(electable, main = "Mosaic plot of observed results")
+```
+
+```{r}
+par(las = 1) # horizontal labels
+mosaicplot(electable, main = "Mosaic plot of observed results")
+```
+
+## 5.4 Models
+
+## 5.5  Permutation test
+
+```{r}
+Arthtable <- tally(~ Treatment + Improved, data = Arthritis )
+
+m=.75
+
+m*Arthtable
+chisq.test(m*Arthtable)
+```
+
+```{r}
+c=chisq.test(10*Arthtable)
+```
+
+```{r}
+c$expected
+c$residuals^2
+c$stdres^2
+```
+
+Maybe not reliable p-value.
+
+```{r}
+c
+```
+A permuted dataset:
+
+```{r}
+Arthperm <- Arthritis
+Arthperm <- Arthperm %>% mutate(PermTreatment = shuffle(Treatment))
+plot(Improved ~ PermTreatment, data = Arthperm,
+main = "Stacked Bar Chart of Permuted Arthritis Data")
+Arthpermtable <- tally(~ PermTreatment + Improved, data = Arthperm)
+Arthpermtable
+```
+### A permutation test
+
+```{r}
+Tobs=c$statistic
+```
+
+
+```{r}
+B=10000
+Tstar=replicate(B,{
+     chisq.test(tally(~ shuffle(Treatment) + Improved,
+                      data = Arthritis))$statistic
+})
+
+pdata(Tstar,Tobs,lower.tail=FALSE)[[1]]
+
+
+```
+
+```{r}
+tibble(Tstar) %>% ggplot(aes(x = Tstar)) +
+geom_histogram(aes(y = ..ncount..), bins = 20, col = 1, fill = "khaki") +
+geom_density(aes(y = ..scaled..)) +
+theme_bw() +
+labs(y = "Density") +
+geom_vline(xintercept = Tobs, col = "red", lwd = 2) +
+stat_bin(aes(y = ..ncount.., label = ..count..), bins = 20,
+geom = "text", vjust = -0.75)
+```
+
+## 5.6 chi-square
+
+If cell counts sufficiently large:
+
+```{r}
+chisq.test(Arthtable)$expected
+```
+
+```{r}
+chisq.test(Arthtable)
+```
+
+### 5.7
+
+```{r}
+chisq.test(Arthtable)$residuals
+mosaicplot(5*Arthtable, shade = T)
+```
+
+### 5.9
+
+
+```{r}
+election <- election %>% mutate(VOTEF = factor(VOTE3),
+PARTY = factor(PARTY),
+EDUC = factor(EDUC),
+GENDER = factor(GENDER)
+)
+levels(election$VOTEF) <- c("Gore","Bush","Other")
+# (Possibly) required options to avoid error when running on a PC,
+# should have no impact on other platforms
+# options(ffbatchbytes = 1024ˆ2 * 128); options(ffmaxbytes = 1024ˆ2 * 128 * 32)
+tableplot(election, select = c(VOTEF, PARTY, EDUC, GENDER), pals = list("BrBG"),
+sample = F)
+```
+
+
+
+```{r}
+election2 <- election %>%
+dplyr::select(VOTEF, PARTY, EDUC, GENDER) %>%
+drop_na()
+tableplot(election2, select = c(VOTEF, PARTY, EDUC, GENDER), sort = 1,
+pals = list("BrBG"), sample = F)
+```
+
+### 5.10 cheating and lying
+
+```{r}
+library(poLCA)
+data(cheating) #Survey of students
+cheating <- as_tibble(cheating)
+cheating <- cheating %>% mutate(LIEEXAM = factor(LIEEXAM),
+LIEPAPER = factor(LIEPAPER),
+FRAUD = factor(FRAUD),
+COPYEXAM = factor(COPYEXAM),
+GPA = factor(GPA)
+)
+tableplot(cheating, sort = GPA, pals = list("BrBG"))
+```
+
+```{r}
+cheating <- cheating %>% mutate(liar = interaction(LIEEXAM, LIEPAPER),
+copier = interaction(FRAUD, COPYEXAM)
+)
+levels(cheating$liar) <- c("None", "ExamLie", "PaperLie", "LieBoth")
+levels(cheating$copier) <- c("None", "PaperCheat", "ExamCheat", "PaperExamCheat")
+tableplot(cheating, sort = liar, select = c(liar, copier), pals = list("BrBG"))
+```
+
+```{r}
+cheatlietable <- tally(~ liar + copier, data = cheating)
+cheatlietable
+```
+
+```{r}
+# Collapse the middle categories of both variables by making both have the same level name:
+cheating <- cheating %>% mutate(liar2 = liar,
+copier2 = copier
+)
+levels(cheating$liar2) <- c("None", "ExamorPaper", "ExamorPaper", "LieBoth")
+levels(cheating$copier2) <- c("None", "ExamorPaper", "ExamorPaper", "CopyBoth")
+tableplot(cheating, sort = liar2, select = c(liar2, copier2), pals = list("BrBG"))
+```
+
+
+
+
+
+```{r}
+cheatlietable <- tally(~ liar2 + copier2, data = cheating)
+cheatlietable
+```
+
+### 5.11 Stratified random sample
+
+```{r}
+library(survey)
+data(api)
+apistrat <- as_tibble(apistrat)
+apipop <- as_tibble(apipop)
+tally(~ stype, data = apipop) #Population counts
+```
+
+```{r}
+tally(~ stype, data = apistrat) #Sample counts
+##
+```
+
+```{r}
+m1 <- lm(growth ~ stype, data = apistrat)
+library(car)
+Anova(m1)
+```
+
+```{r}
+plot(m1, which = 2, pch = 16)
+```
+
+```{r}
+shapiro.test(apistrat$growth)
+
+
+
+```
+
+```{r}
+favstats(~ growth, data = apistrat)
+```
+
+```{r}
+apistrat <- apistrat %>% mutate(growthcut = cut(growth, breaks = c(-47,6.75,25,48,133),
+include.lowest = T))
+```
+
+
+NEW CODE:
+
+
+```{r}
+apistrat2 <- apistrat %>% mutate(growthcut2 = cut(growth, quantile(growth,c(0,.25,.5,.75,1)),
+include.lowest = T))
+```
+
+
+```{r}
+tally(~ growthcut, data = apistrat)
+```
+
+
+```{r}
+growthtable <- tally(~ stype + growthcut, data = apistrat)
+growthtable
+```
+
+```{r}
+chisq.test(growthtable)$expected
+```
+
+```{r}
+chisq.test(growthtable)
+```
+
+```{r}
+mosaicplot(growthcut ~ stype, data = apistrat, shade = T)
+```
+
+

@@ -1,0 +1,130 @@
+---
+title: "Day 14 (week 8) class"
+subtitle: "Effect Size"
+author: "Joe Skufca"
+date:  "2024-02-11"
+output: html_notebook
+---
+
+Trying to understand effect size.
+
+
+## Packages that we will typically load
+
+
+Here are three of my favorites that I always load.
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(here)
+
+library(readxl) #for data ease
+
+```
+ANOVA chapter added four new packages:
+```{r}
+#library(effects)
+library(car)
+#library(catstats)
+#library(tabplot)
+
+#library(mosaic)
+#library(yarrr)
+```
+
+And for chapter 5, we add:
+
+```{r}
+library(vcd)  #visualizing categorical data
+library(RColorBrewer) # colors
+#library(poLCA) # for a dataset
+#library(survey) # we will use for a dataset, but supports analysis of survey data
+```
+## A simulation with two groups:
+
+
+```{r}
+library(broom)
+N=1000;
+
+df1=tibble(x=rnorm(N,70,10),g=1)
+df2=tibble(x=rnorm(N,75,10),g=2)
+
+dft=bind_rows(df1,df2)
+
+t.test(x~g,data=dft) %>% tidy()
+
+
+```
+```{r}
+library(DT)
+s=c(5,10,20,40,80,160,320,640,1000)
+
+map_dfr(s,\(s) t.test(x~g,data=dft %>% slice_head(n=s,by=g)) %>% tidy()) %>%
+     mutate(s=s,.before=1) 
+
+```
+
+```{r}
+x=runif(2*N)
+y=.5*x+rnorm(2*N)
+dfr=tibble(x,y)
+
+s=2000
+lm(y~x-1,data=dfr %>% slice_head(n=s)) %>% tidy()
+
+dfr %>% slice_head(n=s) %>% ggplot(aes(x,y)) + geom_point()
+```
+
+```{r}
+s=c(5,10,20,40,80,160,320,640,1000)
+
+map_dfr(s,\(s) lm(y~x-1,data=dfr %>% slice_head(n=s)) %>% tidy()) %>%
+     mutate(s=s,.before=1) 
+
+```
+
+
+
+
+
+## Sec 5.1
+
+```{r}
+df1=readr::read_csv("https://raw.githubusercontent.com/jskufca/advanced_stat/dev/data/ma131_grades_4239.csv") %>% janitor::clean_names()
+# Homogeneity example
+```
+
+```{r}
+# Options needed to (sometimes) prevent errors on PC
+# options(ffbatchbytes = 1024ˆ2 * 128); options(ffmaxbytes = 1024ˆ2 * 128 * 32)
+df1 %>% 
+     tableplot(select = c(grade,grd_pt_unt,unit_taken), pals = list("BrBG"),
+sample = F, colorNA_num = "orange", numMode = "MB-ML")
+```
+```{r}
+df2=df1 %>% 
+     mutate(gradef=factor(grade), unitf=factor(unit_taken))
+```
+
+```{r}
+df2table <- tally(~ gradef + unitf, data = df2)
+df2table
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+mosaicplot(unitf~gradef, data = df2, shade = T)
+```
+
+
