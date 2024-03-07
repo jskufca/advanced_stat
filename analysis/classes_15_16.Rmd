@@ -313,9 +313,9 @@ confint(m5)
 
 
 ```{r}
-vif(m5)
+sqrt(vif(m5))
 ```
-
+### Bootstrap??
 
 ## 8.7 overall F-test
 
@@ -434,7 +434,74 @@ theme_bw()
 grid.arrange(v1, m1, ncol = 2)
 ```
 
-8.9 Different intercepts for different groups
+#### a sidenote
+
+
+```{r}
+library(palmerpenguins)
+dfp=penguins
+dfp %>% ggplot(aes(x = flipper_length_mm,
+                   y = bill_depth_mm)) +
+  geom_point( size = 3,
+             alpha = 0.8)+
+theme_minimal()
+```
+```{r}
+library(palmerpenguins)
+dfp=penguins
+dfp %>% ggplot(aes(x = flipper_length_mm,
+                   y = bill_depth_mm)) +
+  geom_point( size = 3,
+             alpha = 0.8)+
+     geom_smooth(method=lm)+
+theme_minimal()
+```
+
+```{r}
+
+dfp %>% ggplot(aes(x = flipper_length_mm,
+                   y = bill_depth_mm,color=species)) +
+  geom_point( size = 3,
+             alpha = 0.8)+
+     
+theme_minimal()
+```
+
+```{r}
+dfp %>% ggplot(
+                       aes(x = flipper_length_mm,
+                           y = bill_depth_mm,color=species)) +
+  geom_point( size = 3,
+             alpha = 0.8)+
+  #theme_minimal() +
+  
+     geom_smooth(method=lm)+
+  theme_minimal()
+
+```
+
+```{r}
+library(palmerpenguins)
+dfp=penguins
+dfp %>% ggplot(
+                       aes(x = body_mass_g,
+                           y = bill_depth_mm,color=species)) +
+  geom_point( size = 3,
+             alpha = 0.8) +
+  #theme_minimal() +
+  scale_color_manual(values = c("darkorange","purple","cyan4")) +
+  labs(title = "Penguin size, Palmer Station LTER",
+       subtitle = "Flipper length and body mass for Adelie, Chinstrap and Gentoo Penguins",
+       x = "Flipper length (mm)",
+       y = "Body mass (g)",
+       color = "Penguin species",
+       shape = "Penguin species") +
+     geom_smooth(method=lm)+
+  theme_minimal()
+
+```
+
+### 8.9 Different intercepts for different groups
 
 
 Sat    and   gender.
