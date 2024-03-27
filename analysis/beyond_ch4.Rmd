@@ -1,0 +1,225 @@
+---
+title: "Beyond linear regression"
+subtitle: "Ch4: Poisson Regression"
+author: "Joe Skufca"
+date: "2024-03-23"
+output:
+  html_notebook: default
+---
+
+This work take from Ch 4 of *Beyond Multiple Linear Regression* by Roback and Legler
+
+https://bookdown.org/roback/bookdown-BeyondMLR/ch-poissonreg.html
+
+
+
+
+## Packages
+
+Recommended from the book:
+
+```{r}
+# Packages required for Chapter 4
+library(gridExtra)  # grid graphics
+library(knitr)   #knitting documents
+library(kableExtra) # pretty tables
+library(mosaic) # stats teaching utilities
+library(xtable) # html tables
+library(pscl) #poly sci computational lab
+library(multcomp) 
+library(pander) #pandoc writing
+library(MASS) #modern applied statistics book
+library(tidyverse)
+
+```
+
+Adding my own favorites.
+
+```{r}
+
+library(janitor)
+library(here)
+library(broom)
+
+```
+
+
+```{r}
+data_github_url="https://raw.githubusercontent.com/proback/BeyondMLR/master/data/"
+```
+
+
+
+## Sec 4.2
+
+If $\lambda_i$ is the average rate for explanatory condition $i$, then we will use
+
+$$log (\lambda_i) = \beta_0+\beta_1 x_i$$
+
+
+## Sec 4.4 Household size in Phillippines
+
+I will read data directly from github:
+
+
+```{r}
+fHH1=read_csv(paste0(data_github_url,"fHH1.csv"))
+```
+
+```{r, nhouse, fig.align="center",out.width="60%", fig.cap='Distribution of household size in 5 Philippine regions.',echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(fHH1, aes(total)) + 
+  geom_histogram(binwidth = .25, color = "black", 
+                 fill = "white") + 
+  xlab("Number in the house excluding head of household") +
+  ylab("Count of households")
+```
+
+### Some EDA
+
+```{r}
+fHH1 %>% 
+     mutate(agegroup=cut(age,breaks=20)) %>%
+     summarize(n=n(),mean=mean(total),var=var(total),.by=agegroup) %>%
+     arrange(agegroup)
+```
+
+
+```{r}
+fHH1 %>% 
+     mutate(agegroup=cut(age,breaks=20)) %>%
+     summarize(n=n(),mean=mean(total),var=var(total),.by=age) %>%
+     ggplot(aes(age,log(mean)))+
+     geom_point()+
+     geom_smooth()
+
+
+```
+by region?
+
+```{r}
+fHH1 %>% 
+          summarize(n=n(),
+               mean=mean(total),
+               var=var(total),
+               .by=c(age,location) )%>%
+     ggplot(aes(age,log(mean),color=location))+
+     geom_point()+
+     geom_smooth()
+```
+
+
+
+#### Modeling
+
+```{r}
+modela = glm(total ~ age, family = poisson, data = fHH1)
+
+summary(modela)
+```
+
+```{r}
+confint(modela)
+exp(confint(modela))
+```
+
+#### 4.4.4 Deviances
+
+```{r}
+model0 <- glm(total ~ 1, family = poisson, data = fHH1)
+anova(model0, modela, test = "Chisq")
+```
+
+#### 4.4.6 Second order model
+
+
+```{r}
+fHH1 <- fHH1 %>% mutate(age2 = age*age)
+modela2 = glm(total ~ age + age2, family = poisson, 
+              data = fHH1)
+
+summary(modela2)
+```
+
+```{r}
+modela22 = glm(total ~ age + I(age^2), family = poisson, 
+              data = fHH1)
+
+summary(modela22)
+```
+
+```{r}
+modela23 = glm(total ~ poly(age,2), family = poisson, 
+              data = fHH1)
+
+summary(modela23)
+```
+
+```{r}
+anova(modela, modela2, test = "Chisq")
+```
+
+####  4.4.7 Add a covariate
+
+```{r}
+modela2L = glm(total ~ age + age2 + location, 
+               family = poisson, data = fHH1)
+
+summary(modela2L)
+```
+
+```{r}
+anova(modela,modela2, modela2L, test = "Chisq")
+```
+
+#### 4.4.8 deviance residuals
+
+```{r}
+augment(modela) %>% ggplot(aes(.fitted,.resid))+geom_point()+geom_smooth()
+```
+
+
+###4.6 campus crime
+
+```{r}
+c_data0=read_csv(paste0(data_github_url,"c_data.csv"))
+
+
+```
+
+```{r}
+hist(c_data0$nv,breaks=20)
+```
+
+```{r}
+c_data0 %>% tabyl(type,region) 
+```
+Data revison prior to building Table 4.4
+
+```{r}
+c.data=c_data0 %>%
+     mutate(type=factor(type),
+            region=factor(region) %>% fct_recode(S="SW",S="SE")) %>%
+     filter(nvrate<5.3)
+
+
+```
+
+```{r}
+c.data %>% 
+     summarize(across(nv:nvrate,list(mean=mean,var=var)),
+               .by = c(region,type)) %>%
+     arrange(region,type)
+```
+
+
+### 4.8 models
+
+```{r}
+modeltr <- glm(nv ~ type + region, family = poisson,
+               offset = log(enroll1000), data = c.data)
+
+summary(modeltr)
+```
+
+
+

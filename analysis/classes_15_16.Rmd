@@ -580,7 +580,7 @@ plot(allEffects(head1, residuals = T), grid = T)
 
 
 ```{r}
-par(mfrow = c(2,2), oma = c(0,0,3,0))
+%par(mfrow = c(2,2), oma = c(0,0,3,0))
 plot(head1, pch = 16, sub.caption = "")
 title(main="Plot of diagnostics for additive model with du1 and
 treatment for du2", outer=TRUE)
