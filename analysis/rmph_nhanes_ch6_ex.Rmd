@@ -1,0 +1,148 @@
+---
+title: "Beyond linear regression"
+subtitle: "Ch4 Homework"
+author: "Joe Skufca"
+date: "2024-03-28"
+output:
+  html_notebook: default
+---
+
+This work take from Ch 4 of *Beyond Multiple Linear Regression* by Roback and Legler
+
+https://bookdown.org/roback/bookdown-BeyondMLR/ch-poissonreg.html
+
+Specifically, will will tackle the guided homework problem on elephant mating.
+
+
+
+## Packages
+
+Recommended from the book:
+
+```{r}
+# Packages required for Chapter 4
+library(gridExtra)  # grid graphics
+library(knitr)   #knitting documents
+library(kableExtra) # pretty tables
+library(mosaic) # stats teaching utilities
+library(xtable) # html tables
+library(pscl) #poly sci computational lab
+library(multcomp) 
+library(pander) #pandoc writing
+library(MASS) #modern applied statistics book
+library(car)
+library(tidyverse)
+
+```
+
+Adding my own favorites.
+
+```{r}
+
+library(janitor)
+library(here)
+library(broom)
+
+theme_set(theme_minimal())
+```
+
+## load data
+
+```{r}
+#load("Data/nhanes1718_adult_exam_sub_rmph.Rdata")
+load(here("data","nhanes1718_adult_exam_sub_rmph.Rdata"))
+
+# Create dichotomized PHQ-9
+
+# "PHQ-9 scores of 5, 10, 15, and 20 represented mild, moderate,
+# moderately severe, and severe depression, respectively"
+# (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1495268/)
+
+nhanes <- nhanes_adult_exam_sub %>% 
+  mutate(depression_mild = factor(phq9 >= 5,
+                                  levels = c(F, T),
+                                  labels = c("No", "Yes"))) %>%
+     clean_names()
+# Check
+table(nhanes$phq9, nhanes$depression_mild, exclude = NULL)
+tapply(nhanes$phq9, nhanes$depression_mild, range, na.rm=T)
+```
+
+## prob 4
+
+2x2 table
+
+```{r}
+TAB=table(nhanes$paq635,nhanes$depression_mild)
+TAB
+
+(TAB[1,2]*TAB[2,1]) / (TAB[2,2]*TAB[1,1])
+```
+
+## prob 5
+
+```{r}
+TAB=table(nhanes$slq050,nhanes$depression_mild)
+TAB
+
+(TAB[1,2]*TAB[2,1]) / (TAB[2,2]*TAB[1,1])
+```
+
+## prob 6
+
+
+```{r}
+levels(nhanes$depression_mild)
+```
+No is the reference and glm models $p=P(Y="Yes")$.
+
+## prob 7
+
+Compute the odds ratio comparing the odds of mild depression (depression_mild) between those who do and those who do not answer “Yes” to the sleeping question (SLQ050) using logistic regression, as well as its 95% confidence interval. Assume depression_mild is the outcome.
+
+```{r}
+m1=glm(depression_mild ~slq050, data=nhanes, family=binomial)
+summary(m1)
+```
+
+```{r}
+exp(coef(m1))[-1]
+```
+```{r}
+1/exp(coef(m1))[-1]
+```
+
+```{r}
+1/exp(confint(m1))[-1, , drop=F]
+```
+## Prob 8
+Do the odds of mild depression (depression_mild) differ between individuals of different income levels (income)? Test the global significance of income using a Type III Wald test and compute the OR, 95% CI, and p-value comparing each possible pair of levels.
+
+```{r}
+m2=glm(depression_mild ~income, data=nhanes, family=binomial)
+summary(m2)
+
+
+```
+
+```{r}
+car::Anova(m2,type=3,test.statistic = "Wald")
+```
+
+```{r}
+exp(coef(m1))
+```
+
+```{r}
+glht(m2,mcp(income="Tukey"))
+```
+
+## Prob 9
+
+Is mild depression (depression_mild) associated with the number of days someone engages in vigorous recreational activities (PAQ655, “In a typical week, on how many days do you do vigorous-intensity sports, fitness or recreational activities?”)? What is the OR comparing mild depression between individuals who differ by 1 day in days of vigorous recreation? What about between those who differ by 5 days?
+
+
+
+
+
+

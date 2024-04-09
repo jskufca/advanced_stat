@@ -1,0 +1,488 @@
+---
+title: "Beyond linear regression"
+subtitle: "Ch4 Homework"
+author: "Joe Skufca"
+date: "2024-03-28"
+output:
+  html_notebook: default
+---
+
+This work take from Ch 4 of *Beyond Multiple Linear Regression* by Roback and Legler
+
+https://bookdown.org/roback/bookdown-BeyondMLR/ch-poissonreg.html
+
+Specifically, will will tackle the guided homework problem on elephant mating.
+
+
+
+## Packages
+
+Recommended from the book:
+
+```{r}
+# Packages required for Chapter 4
+library(gridExtra)  # grid graphics
+library(knitr)   #knitting documents
+library(kableExtra) # pretty tables
+library(mosaic) # stats teaching utilities
+library(xtable) # html tables
+library(pscl) #poly sci computational lab
+library(multcomp) 
+library(pander) #pandoc writing
+library(MASS) #modern applied statistics book
+library(tidyverse)
+
+```
+
+Adding my own favorites.
+
+```{r}
+
+library(janitor)
+library(here)
+library(broom)
+
+theme_set(theme_minimal())
+```
+
+
+```{r}
+data_github_url="https://raw.githubusercontent.com/proback/BeyondMLR/master/data/"
+```
+
+
+We will use the `elephant.csv` dataset.   I put the variable names into my standard format.
+
+```{r}
+df1=read_csv(paste0(data_github_url,"elephant.csv")) %>%
+     clean_names()
+```
+## __Elephant mating.__ How does age affect male elephant mating patterns? 
+
+An article by @Poole1989 investigated whether mating success in male elephants increases with age and whether there is a peak age for mating success. To address this question, the research team followed 41 elephants for one year and recorded both their ages and their number of matings. The data [@Ramsey2002] is found in `elephant.csv`, and the variables are:
+    - `MATINGS` = the number of matings in a given year
+    - `AGE` = the age of the elephant in years.
+    
+###  a.
+    a. Create a histogram of MATINGS. Is there preliminary evidence that number of matings could be modeled as a Poisson response? Explain.
+    
+```{r}
+hist(df1$matings)
+```
+The matings data is clearly not normally distributed.  It is count information, so a Poisson might be reasonable.
+
+
+###    b. 
+b. Plot MATINGS by AGE. Add a least squares line. Is there evidence that modeling matings using a linear regression with age might not be appropriate? Explain.  (Hints: fit a smoother; check residual plots).
+    
+```{r}
+df1 %>% 
+     ggplot(aes(age,matings))+
+     geom_point()+
+     geom_smooth(method=lm)
+```
+It seems like we have heteroskedaticity, with variance increasing.   
+
+We examine a linear model scale-location plot to clarify the issue:
+
+```{r}
+df1 %>% lm(matings~age,data=.) %>% plot(which=3)
+```
+We see a clear increaseing trend in the standardized residuals, such that homoskedasticiy is not satisfied.
+
+    
+    
+### c
+c. For each age, calculate the mean number of matings. Take the log of each mean and plot it by AGE.
+
+        
+```{r}
+df1s = df1 %>%
+     summarise(mate_mean=mean(matings),.by=age) %>%
+     arrange(age)
+
+df1s %>% ggplot(aes(age,log(mate_mean))) +
+     geom_point()+
+     geom_smooth(method=lm)
+```
+        
+>        i. What assumption can be assessed with this plot?
+
+For Poisson regression we need a linear relationship between predictors and $\log \lambda$.
+This plot allows us to assess that relationship.
+
+
+>        ii. Is there evidence of a quadratic trend on this plot?
+
+I see essentially no evidence of a quadratic trend in this plot.   Perhaps with more data, one might
+be revealed, but I don't expect to need a polynomial term.
+
+
+### d. 
+Fit a Poisson regression model with a linear term for AGE. Exponentiate and then interpret the coefficient for AGE.
+
+
+```{r}
+m1=glm(matings ~ age, family=poisson, data=df1)
+summary(m1)
+```
+```{r}
+m1$coefficients %>% exp()
+```
+
+When age is increased by 1 year, the expected number of matings increases by a 
+factor of $\approx 1.07$.
+
+### e. 
+>Construct a 95\% confidence interval for the slope and interpret in context (you may want to exponentiate endpoints).
+
+```{r}
+confint(m1) 
+confint(m1) %>% exp()
+```
+Although I could interpret the above, I will build a age centered model based on information from
+
+
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7471917/#:~:text=Between%2025%20and%2030%20years,by%20males%20in%20musth22.
+
+
+which suggests that males begin to mate at about age 25.   As such, I will center about age 25 for future analysis.
+
+```{r}
+df1c=df1 %>%
+     mutate(agec=age-25)
+
+m2=glm(matings ~ agec, family=poisson, data=df1c)
+summary(m2)
+
+confint(m2) 
+confint(m2) %>% exp()
+```
+Based on a 95% confidence interval:
+* 25 year old males will have (on average) between $\approx .74$ and $\approx 1.72$ matings that first year.
+* The expected number of matings will increase between 4% and 10% per year.
+
+### f. 
+>Are the number of matings significantly related to age? Test with
+>        i. a Wald test and
+
+
+The summary output for a *poisson* family glm is *doing* the Wald-test on each coefficient.
+
+```{r}
+summary(m2)
+```
+
+We can verify as follows: the `agec` coefficient is 0.06869, with se=.01375.
+
+```{r}
+(my_z=.06869/.01375)
+(my_p=2*pnorm(my_z,lower.tail = FALSE))
+```
+*By Wald test, there is strong evidence ($p \approx 6e-7$) to include age as a predictor.*
+
+>        ii. a drop in deviance test.
+
+Since we consider only model `m2` against the null, we do not need to create the null model.
+
+```{r}
+anova(m2, test = "Chisq")
+```
+
+Again, we see strong evidence that age should be included as a predictor.
+
+### g. 
+>Add a quadratic term in AGE to determine whether there is a maximum age for the number of matings for  elephants. Is a quadratic model preferred to a linear model? To investigate this question, use
+        i. a Wald test and
+        ii. a drop in deviance test.
+        
+We fit a quadratic model:
+
+```{r}
+mq=glm(matings ~ agec +I(agec^2), family=poisson, data=df1c)
+summary(mq)
+```
+
+By Wald test, we have almost no evidence (p=.669) to support including the quadratic term.
+
+
+*Using `poly`:* 
+```{r}
+mq2=glm(matings ~ poly(agec,2), family=poisson, data=df1c)
+summary(mq2)
+```
+ Using `poly` we know that the 1st degree and 2nd degree polynomial are orthoganal, 
+ so we can see that the linear term has strong evidence (p<1e-5), while we still find
+ essentially no evidence for the quadratic term.
+ 
+ 
+If we consider drop in deviance, we have to look at the nested model:
+
+
+```{r}
+anova(mq, test = "Chisq")
+```
+
+Drop_in_deviance again indicates that there is little evidence (p=.67) to support inclusion of the quadratic term.
+
+
+        
+### h. 
+>What can we say about the goodness-of-fit of the model with age as the sole predictor? Compare the residual deviance for the linear model to a $\chi^2$ distribution with the residual model degrees of freedom.
+    
+Our interest here is whether the poisson model was an appropriate choice.  
+(In particular, we might worry about overdispersion).
+
+```{r}
+1-pchisq(m2$deviance, m2$df.residual)
+```
+
+There is some (but weak) evidence of lack of fit (p=.094).
+
+
+### i. 
+>Fit the linear model using quasi-Poisson regression. (Why?)
+
+If the poisson model does not fit, likely due to overdispersion, we may use the ad-hoc
+method of quasi-poisson, which allows us to account for the dispersion.
+
+```{r}
+m_quasi=glm(matings ~ agec, family=quasipoisson, data=df1c)
+summary(m_quasi)
+
+confint(m_quasi) 
+confint(m_quasi) %>% exp()
+```
+
+I use the `tidy` function from broom to collect this data in a way that allows for easier comparison:
+
+
+```{r}
+tidy(m2) %>% bind_rows(tidy(m_quasi))
+
+```
+
+
+>        i. How do the estimated coefficients change?
+
+We see that the coefficients are the same in both models.
+
+>        ii. How do the standard errors change?
+
+The standard errors are inflated in the quasipoisson model.  
+(additionally, the test statistic is a t-value instead of a z-value)
+
+>        iii. What is the estimated dispersion parameter?
+
+The dispersion parameter for the quasipoisson model is 1.157334.  As such,
+std. error should be increased by $\sqrt{dispersion} \approx$ `r sqrt(1.1573)`.
+
+>        iv. An estimated dispersion parameter greater than 1 suggests overdispersion. When adjusting for overdispersion, are you more or less likely to obtain a significant result when testing coefficients? Why?  
+
+Since standard error is larger, the computed test statistic is smaller (closer to 0) and less likely to be significant.
+
+Additionally, since we are estimating dispersion (instead of assume that it is 1) we use
+a t-statistic instead of z-statistic, which results in a larger p-value.  
+
+In this particular case, dispersion is only slightly larger than 1, and there remains strong
+evidence to include age as a predictor.
+
+
+# Using *Greenwood* as guide for this problem
+
+Recall that in *Greenwood*, he gave a general outline for hypothesis testing, 
+where his template acknowledged that the *reason* for the hypothesis test was
+actually embedded inside of a larger objective.
+
+Outline of 6+ steps to perform a Hypothesis Test
+Preliminary steps:
+* Define research question (RQ) and consider study design – what question can the data collected address?
+* What graphs are appropriate to visualize the data?
+* What model/statistic (T) is needed to address RQ?
+
+1. Write the null and alternative hypotheses.
+2. Plot the data and assess the “Validity Conditions” for the procedure being used (discussed below).
+3. Find the value of the appropriate test statistic and p-value for your hypotheses.
+4. Write a conclusion specific to the problem based on the p-value, reporting the strength of evidence against
+the null hypothesis (include test statistic, its distribution under the null hypothesis, and p-value).
+5. Report and discuss an estimate of the size of the differences, with confidence interval(s) if appropriate.
+6. Scope of inference discussion for results.
+
+
+### My writeup
+
+> Note that much of what I enter below is a reorganization of materials from above.
+
+#### Research question?
+
+How does age affect male elephant mating patterns? Based on data collect by *Poole*.
+
+As we are a re-analysis of a collected dataset, we have limited access.   The data provided
+appears to be an operational study, with data on 41 subjects, with *age* and *number of matings* being 
+the only data available to us.
+
+##### Initial EDA
+
+Consider a scatterplot of this data:
+
+```{r fig.height=3}
+df1 %>% 
+     ggplot(aes(age,matings))+
+     geom_point()+
+     geom_smooth(method=lm)
+```
+
+Although the relationship appears linear, linear regression seems unsuitable, as variance seems to be growing.
+
+For that reason, along with the fact that we have "count" data, we will use poisson regression
+and explore whether there is a relationship between `matings` and `age`.
+
+Before regression, we will center our data.   Based on other source information,
+males typically begin to mate at about 25 years of age, so we will computed a centered age:
+
+$$agec=age-25.$$
+
+Our regression equation (for Poisson analysis) is given by
+
+$$\log \lambda_i = \beta_0 +\beta_1 \cdot \rm{age}_i.$$
+where $\lambda_i$ is the expected number of matings.
+
+
+##### Hypothesis:
+
+For this regression, we are considering whether there is a relationship between age:
+
+* H0:   $\beta_1=0$
+* H1:   $\beta_1 \neq 0$
+
+##### Validity:
+
+The assumption of independent samples will be assumed based on the fact that no metadata
+indicated that there is dependence between samples.
+
+To assess the reasonableness of a linear relationship consistent with our regression information, 
+we aggregate by age and plot mean(matings) vs age.
+
+```{r}
+df1s = df1 %>%
+     summarise(mate_mean=mean(matings),.by=age) %>%
+     arrange(age)
+
+df1s %>% ggplot(aes(age,log(mate_mean))) +
+     geom_point()+
+     geom_smooth(method=lm)
+```
+
+To assess whether mean matches with variance, we will look at binned data and compute a summary:
+
+```{r}
+df_g=df1 %>% 
+     mutate(agegroup=cut(age,breaks=6)) %>%
+     summarize(n=n(),mean=mean(matings),var=var(matings),.by=agegroup) %>%
+     arrange(agegroup)
+
+df_g
+```
+
+For the last two quantile, we see that variance quite large, and we may
+greater dispersion than anticipated. But with small sample size, it could simply be
+the result of statistical error.
+
+Visuallizing this summary:
+
+```{r}
+df_g %>% 
+     ggplot(aes(mean,var)) +
+     geom_point() +
+     geom_abline(intercept=0,slope=1,color="red")
+```
+Ideally, the points would all lie on the red $y=x$ line, so 
+I am not convinced that mean equals variance.  
+Consequently, we will ALSO investigate a quasipoisson model.
+
+### Fitting data and evaluating the fit.
+
+Based on information from
+
+
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7471917/#:~:text=Between%2025%20and%2030%20years,by%20males%20in%20musth22.
+
+
+which suggests that males begin to mate at about age 25, I will center about age 25 for future analysis:
+
+$$\mathrm{agec}=\mathrm{age}-25.$$
+
+```{r}
+df1c=df1 %>%
+     mutate(agec=age-25)
+
+m2=glm(matings ~ agec, family=poisson, data=df1c)
+summary(m2)
+
+```
+
+The Wald test on the age coefficient ($p = 5.81e-07$) gives strong evidence that
+the agec coefficient should be included in the model.
+
+
+For completeness, we evaluate whether a more complex model (including a quadratic term) is appropriate:
+
+```{r}
+mq2=glm(matings ~ poly(agec,2), family=poisson, data=df1c)
+summary(mq2)
+```
+
+We see that there is essentially no evidence ($p=.669$) that a quadratic model is appropriate.
+
+
+Returning to the poisson model with only linear term, we perform a goodness of fit
+test to determine whether the poisson regression model is appropriate:
+
+For this test:
+* H0: the data fits a poisson model
+* H1: the data does not fit a poisson model
+
+Our interest here is whether the poisson model was an appropriate choice.  
+(In particular, we might worry about overdispersion).
+
+```{r}
+1-pchisq(m2$deviance, m2$df.residual)
+```
+
+There is some (weak) evidence of lack of fit (p=.094).  Based on this result (as well as concerns from our EDA), we also fit a quasipoisson model:
+
+```{r}
+m_quasi=glm(matings ~ agec, family=quasipoisson, data=df1c)
+summary(m_quasi)
+
+
+```
+
+I use the `tidy` function from broom to collect this data in a way that allows for easier comparison:
+
+
+```{r}
+tidy(m2) %>% bind_rows(tidy(m_quasi))
+
+```
+
+With dispersion a bit greater than one, we see increased standard errors for our estimates,
+but their remains strong evidence of the relationship with age.
+
+We will account for this dispersion in describing and interpreting the size of these effects:
+
+```{r}
+coef(m_quasi) %>% exp()
+confint(m_quasi) 
+confint(m_quasi) %>% exp()
+```
+
+* The intercept coefficient indicates that at age 25, we would expect a male to engage
+in about 1.14 matings (95% confidence interval  [.71,1.77])
+* The agec coefficient indicates that for each additional year of age, the number of matings will
+increase by a factor of 1.07 (95% confidence interval [1.04,1.10])
+
+
+__Scope of Inference.__  Based on the cited paper, this observational study focused on a particular population of elephants in the Amboseli National Park, Kenya. It is likely that the data is representative of that population, although there is not positive statement regard the selection process for the observed animals.  We lack the expertise to assess the extent to which this group of elephants is representative of a broader population of african elephants.   No causal inferencing is possible from the data (observational data, not an experiment), although the paper does describe why increased age might typically be expected to lead to increased mating opportunities.
+
+

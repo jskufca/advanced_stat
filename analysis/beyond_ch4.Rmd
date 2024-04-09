@@ -141,7 +141,7 @@ summary(modela2)
 ```
 
 ```{r}
-modela22 = glm(total ~ age + I(age^2), family = poisson, 
+modela22 = glm(total ~ age + I(age^2)+location, family = poisson, 
               data = fHH1)
 
 summary(modela22)
@@ -215,7 +215,7 @@ c.data %>%
 ### 4.8 models
 
 ```{r}
-modeltr <- glm(nv ~ type + region, family = poisson,
+modeltr <- glm(nv ~ type + region+type:region, family = poisson,
                offset = log(enroll1000), data = c.data)
 
 summary(modeltr)

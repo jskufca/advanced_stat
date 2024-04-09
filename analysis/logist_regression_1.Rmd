@@ -1,0 +1,170 @@
+---
+title: "Logistic Regression"
+subtitle: "Part 1"
+author: "Joe Skufca"
+date: "2024-04-03"
+output:
+  html_notebook: default
+---
+
+This work take from Ch 6 of *Introduction to Regression Methods for Public Health Using R* by Nahhas.
+
+https://www.bookdown.org/rwnahhas/RMPH/
+
+
+Supporting material is from Ch 6 of *Beyond Multiple Linear Regression* by Roback and Legler
+
+https://bookdown.org/roback/bookdown-BeyondMLR/ch-poissonreg.html
+
+Specifically, will will tackle the guided homework problem on elephant mating.
+
+
+
+## Packages
+
+Recommended from the book:
+
+```{r}
+# Packages required for Chapter 4
+library(gridExtra)  # grid graphics
+library(knitr)   #knitting documents
+library(kableExtra) # pretty tables
+library(mosaic) # stats teaching utilities
+library(xtable) # html tables
+library(pscl) #poly sci computational lab
+library(multcomp) 
+library(pander) #pandoc writing
+library(MASS) #modern applied statistics book
+library(tidyverse)
+
+```
+
+Adding my own favorites.
+
+```{r}
+
+library(janitor)
+library(here)
+library(broom)
+
+theme_set(theme_minimal())
+```
+
+# Some artificial data about hearing
+
+The logit and its inverse are available in base R, but under differengt names, so
+I redefine here for readability.
+
+```{r}
+logit <- qlogis
+invlogit <- plogis
+```
+
+
+```{r}
+set.seed(1)
+n=40
+
+power=runif(n,0,40)
+age=sample(19:30,n,replace=TRUE)
+
+y=-4.3 +.25*power
+r=rbinom(n,1,invlogit(y))
+df1=tibble(power,age,r)
+
+
+#write_csv(df1,here::here("data","hearing.csv"))
+```
+
+## visualization
+
+```{r}
+df1 %>% ggplot(aes(power,r)) +
+     geom_point()
+```
+
+```{r}
+df1 %>% ggplot(aes(power,r)) +
+     geom_point() + 
+     geom_smooth(method=lm,color="red",se=FALSE)
+```
+
+```{r}
+df1 %>% ggplot(aes(power,r)) +
+     geom_point() + 
+     geom_smooth(method=lm,color="red",se=FALSE)+
+     geom_smooth(method = "glm", 
+                 method.args = list(family = "binomial"),
+                 se = FALSE) 
+```
+
+```{r}
+df1 %>% ggplot(aes(power,r)) +
+     geom_point() + 
+     geom_smooth(method=lm,color="red",se=FALSE)+
+     geom_smooth(method = "glm", 
+                 method.args = list(family = "binomial"),
+                 se = FALSE) +
+     geom_smooth(method = "glm", 
+                 method.args = list(family = binomial(link="probit")),
+                 se = FALSE,color="green") 
+```
+
+## Now the regression analysis
+
+```{r}
+m1=glm(r~power,data=df1,family=binomial)
+
+summary(m1)
+```
+
+What if we add `age` to the regression:
+
+```{r}
+
+m2=glm(r~power+age,data=df1,family=binomial)
+
+summary(m2)
+
+```
+
+
+# A second dataset on hearing
+
+Let's generate a dataset where the process includes a lurking variable:
+
+
+```{r}
+set.seed(1)
+n=40
+
+power=runif(n,0,40)
+age=sample(19:30,n,replace=TRUE)
+first_last=sample(c("first","last"),n,replace=TRUE)
+
+y2=-4.3 +.25*power+4.5*(first_last=="last")
+r2=rbinom(n,1,invlogit(y2))
+df2=tibble(power,age,r2)
+
+
+
+```
+
+
+
+
+```{r}
+m3=glm(r2~power,data=df2,family=binomial)
+
+summary(m3)
+```
+
+
+```{r}
+df2 %>% ggplot(aes(power,r)) +
+     geom_point() + 
+     geom_smooth(method=lm,color="red",se=FALSE)+
+     geom_smooth(method = "glm", 
+                 method.args = list(family = "binomial"),
+                 se = FALSE) 
+```
