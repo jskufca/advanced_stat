@@ -101,7 +101,7 @@ No is the reference and glm models $p=P(Y="Yes")$.
 Compute the odds ratio comparing the odds of mild depression (depression_mild) between those who do and those who do not answer “Yes” to the sleeping question (SLQ050) using logistic regression, as well as its 95% confidence interval. Assume depression_mild is the outcome.
 
 ```{r}
-m1=glm(depression_mild ~slq050, data=nhanes, family=binomial)
+m1=glm(depression_mild ~paq635, data=nhanes, family=binomial)
 summary(m1)
 ```
 
@@ -141,6 +141,58 @@ glht(m2,mcp(income="Tukey"))
 
 Is mild depression (depression_mild) associated with the number of days someone engages in vigorous recreational activities (PAQ655, “In a typical week, on how many days do you do vigorous-intensity sports, fitness or recreational activities?”)? What is the OR comparing mild depression between individuals who differ by 1 day in days of vigorous recreation? What about between those who differ by 5 days?
 
+```{r}
+m3=glm(depression_mild ~ paq655, data=nhanes, family=binomial)
+summary(m3)
+
+exp(coef(m3))[-1]
+
+```
+
+```{r}
+nhanes %>% ggplot(aes(paq655,depression_mild))+
+     geom_point()+
+     geom_smooth(method = "glm", 
+                 method.args = list(family = "binomial"),
+                 se = FALSE)+
+     geom_jitter()
+```
+
+
+
+
+## Prob 10
+
+Is mild depression (depression_mild) significantly associated with trouble sleeping (SLQ050) after adjusting for age (RIDAGEYR), gender (RIAGENDR), income (income), and days someone engages in vigorous recreational activities (PAQ655)? Answer the question and report the AORs, 95% confidence intervals, and p-values. Also, interpret the AOR for trouble sleeping.
+
+```{r}
+#m4=glm(depression_mild ~ riagendr, data=nhanes, family=binomial)
+m4=glm(depression_mild ~ slq050+ridageyr+riagendr+income+paq655, data=nhanes, family=binomial)
+summary(m4)
+
+exp(coef(m4))[-1]
+exp(confint(m4))[-1]
+```
+```{r}
+car::Anova(m4, type = 3, test.statistic = "Wald")
+```
+
+```{r}
+S(m4)
+```
+
+
+## Prob 11
+Create a forest plot to illustrate the AORs and their 95% CIs for the model from the previous Exercise. For each continuous predictor, plot the AOR corresponding to a difference in the predictor equal to its inter-quartile range (IQR).
+
+```{r}
+library(sjPlot)
+#devtools::install_github("strengejacke/strengejacke")
+```
+
+```{r}
+plot_model(m4)
+```
 
 
 
