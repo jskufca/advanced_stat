@@ -1,0 +1,573 @@
+---
+title: "Survival"
+subtitle: "Teaching lecture"
+author: "Joe Skufca"
+date:  "2024-04-24"
+output: html_notebook
+---
+
+```{r}
+################################################
+# Code file for
+# Introduction to Survival Analysis in R workshop
+#
+# Solutions to exercises at bottom
+################################################
+```
+
+```{r}
+library(survival)
+library(survminer) # for customizable graphs of survival function
+library(broom) # for tidy output 
+library(ggplot2) # for graphing (actually loaded by survminer)
+head(jasa1)
+```
+
+```
+##     id start stop event transplant        age      year surgery
+## 1    1     0   49     1          0 -17.155373 0.1232033       0
+## 2    2     0    5     1          0   3.835729 0.2546201       0
+## 102  3     0   15     1          1   6.297057 0.2655715       0
+## 3    4     0   35     0          0  -7.737166 0.4900753       0
+## 103  4    35   38     1          1  -7.737166 0.4900753       0
+## 4    5     0   17     1          0 -27.214237 0.6078029       0
+```
+
+```{r}
+# ~ 1 indicates KM survival estimtes for whole sample
+KM <- survfit(Surv(time, status) ~ 1, data=aml)
+```
+
+```{r}
+print(KM) 
+```
+
+```
+## Call: survfit(formula = Surv(time, status) ~ 1, data = aml)
+## 
+##       n events median 0.95LCL 0.95UCL
+## [1,] 23     18     27      18      45
+```
+
+```{r}
+# same as print(KM)
+KM
+```
+
+```
+## Call: survfit(formula = Surv(time, status) ~ 1, data = aml)
+## 
+##       n events median 0.95LCL 0.95UCL
+## [1,] 23     18     27      18      45
+```
+
+```{r}
+# save KM survival function as tibble (modern data.frame)
+KM.tab <- tidy(KM) 
+KM.tab # same as print(KM.tab)
+```
+
+```
+## # A tibble: 18 × 8
+##     time n.risk n.event n.censor estimate std.error conf.high conf.low
+##    <dbl>  <dbl>   <dbl>    <dbl>    <dbl>     <dbl>     <dbl>    <dbl>
+##  1     5     23       2        0   0.913     0.0643     1       0.805 
+##  2     8     21       2        0   0.826     0.0957     0.996   0.685 
+##  3     9     19       1        0   0.783     0.110      0.971   0.631 
+##  4    12     18       1        0   0.739     0.124      0.942   0.580 
+##  5    13     17       1        1   0.696     0.138      0.912   0.531 
+##  6    16     15       0        1   0.696     0.138      0.912   0.531 
+##  7    18     14       1        0   0.646     0.157      0.878   0.475 
+##  8    23     13       2        0   0.547     0.196      0.803   0.372 
+##  9    27     11       1        0   0.497     0.218      0.762   0.324 
+## 10    28     10       0        1   0.497     0.218      0.762   0.324 
+## 11    30      9       1        0   0.442     0.248      0.718   0.272 
+## 12    31      8       1        0   0.386     0.282      0.671   0.223 
+## 13    33      7       1        0   0.331     0.321      0.622   0.177 
+## 14    34      6       1        0   0.276     0.369      0.569   0.134 
+## 15    43      5       1        0   0.221     0.432      0.515   0.0947
+## 16    45      4       1        1   0.166     0.519      0.458   0.0598
+## 17    48      2       1        0   0.0828    0.877      0.462   0.0148
+## 18   161      1       0        1   0.0828    0.877      0.462   0.0148
+```
+
+```{r}
+plot(KM, ylab="survival probability", xlab="months")
+```
+
+![plot of chunk Graphing the survival function](figure/Graphing the survival function-1.png)
+
+```{r}
+# stratify by x variable
+KM.x <- survfit(Surv(time, status) ~ x, data=aml)
+
+# median survival by strata
+KM.x
+```
+
+```
+## Call: survfit(formula = Surv(time, status) ~ x, data = aml)
+## 
+##                  n events median 0.95LCL 0.95UCL
+## x=Maintained    11      7     31      18      NA
+## x=Nonmaintained 12     11     23       8      NA
+```
+
+```{r}
+# KM estimated survival functions by strata
+tidy(KM.x)
+```
+
+```
+## # A tibble: 20 × 9
+##     time n.risk n.event n.censor estimate std.error conf.high conf.low strata         
+##    <dbl>  <dbl>   <dbl>    <dbl>    <dbl>     <dbl>     <dbl>    <dbl> <chr>          
+##  1     9     11       1        0   0.909     0.0953     1       0.754  x=Maintained   
+##  2    13     10       1        1   0.818     0.142      1       0.619  x=Maintained   
+##  3    18      8       1        0   0.716     0.195      1       0.488  x=Maintained   
+##  4    23      7       1        0   0.614     0.249      0.999   0.377  x=Maintained   
+##  5    28      6       0        1   0.614     0.249      0.999   0.377  x=Maintained   
+##  6    31      5       1        0   0.491     0.334      0.946   0.255  x=Maintained   
+##  7    34      4       1        0   0.368     0.442      0.875   0.155  x=Maintained   
+##  8    45      3       0        1   0.368     0.442      0.875   0.155  x=Maintained   
+##  9    48      2       1        0   0.184     0.834      0.944   0.0359 x=Maintained   
+## 10   161      1       0        1   0.184     0.834      0.944   0.0359 x=Maintained   
+## 11     5     12       2        0   0.833     0.129      1       0.647  x=Nonmaintained
+## 12     8     10       2        0   0.667     0.204      0.995   0.447  x=Nonmaintained
+## 13    12      8       1        0   0.583     0.244      0.941   0.362  x=Nonmaintained
+## 14    16      7       0        1   0.583     0.244      0.941   0.362  x=Nonmaintained
+## 15    23      6       1        0   0.486     0.305      0.883   0.268  x=Nonmaintained
+## 16    27      5       1        0   0.389     0.378      0.816   0.185  x=Nonmaintained
+## 17    30      4       1        0   0.292     0.476      0.741   0.115  x=Nonmaintained
+## 18    33      3       1        0   0.194     0.627      0.664   0.0569 x=Nonmaintained
+## 19    43      2       1        0   0.0972    0.945      0.620   0.0153 x=Nonmaintained
+## 20    45      1       1        0   0       Inf         NA      NA      x=Nonmaintained
+```
+
+```{r}
+# stratified KM curves with 95% CI, 2 colors
+plot(KM.x, ylab="survival probability", xlab="months",
+     conf.int=T, col=c("red", "blue")) 
+```
+
+![plot of chunk Graphing stratified KM estimates of survival](figure/Graphing stratified KM estimates of survival-1.png)
+
+```{r}
+ggsurvplot(KM.x, conf.int=T)
+```
+
+![plot of chunk Customizable, informative survival plots with survminer](figure/Customizable, informative survival plots with survminer-1.png)
+
+```{r}
+ggsurvplot(KM.x, conf.int=T,
+           risk.table=T)
+```
+
+![plot of chunk adding risk table](figure/adding risk table-1.png)
+
+```{r}
+ggsurvplot(KM.x, conf.int=T, 
+           risk.table=T,
+           palette="Accent", # argument to scale_color_brewer()
+           size=2, # argument to geom_line()
+           ggtheme = theme_minimal()) # changing ggtheme
+```
+
+![plot of chunk passing ggplot arguments](figure/passing ggplot arguments-1.png)
+
+```{r}
+g <- ggsurvplot(KM.x, conf.int=T,
+           risk.table=T)$plot  # this is the ggplot object
+g + scale_fill_grey() + scale_color_grey()
+```
+
+![plot of chunk traditional ggplot syntax](figure/traditional ggplot syntax-1.png)
+
+```{r}
+# log rank test, default is rho=0
+survdiff(Surv(time, status) ~ x, data=aml)
+```
+
+```
+## Call:
+## survdiff(formula = Surv(time, status) ~ x, data = aml)
+## 
+##                  N Observed Expected (O-E)^2/E (O-E)^2/V
+## x=Maintained    11        7    10.69      1.27       3.4
+## x=Nonmaintained 12       11     7.31      1.86       3.4
+## 
+##  Chisq= 3.4  on 1 degrees of freedom, p= 0.07
+```
+
+```{r}
+# rho=1 specifies Peto & Peto modification of Gehan-Wilcoxon,
+#   more weight put on earlier time points
+survdiff(Surv(time, status) ~ x, data=aml, rho=1)
+```
+
+```
+## Call:
+## survdiff(formula = Surv(time, status) ~ x, data = aml, rho = 1)
+## 
+##                  N Observed Expected (O-E)^2/E (O-E)^2/V
+## x=Maintained    11     3.85     6.14     0.859      2.78
+## x=Nonmaintained 12     7.18     4.88     1.081      2.78
+## 
+##  Chisq= 2.8  on 1 degrees of freedom, p= 0.1
+```
+
+```{r}
+#### EXERCISE 1 ####
+```
+
+```{r}
+# fit cox model and save results
+lung.cox <- coxph(Surv(time, status) ~ age + sex + wt.loss, data=lung)
+# summary of results
+summary(lung.cox)
+```
+
+```
+## Call:
+## coxph(formula = Surv(time, status) ~ age + sex + wt.loss, data = lung)
+## 
+##   n= 214, number of events= 152 
+##    (14 observations deleted due to missingness)
+## 
+##               coef  exp(coef)   se(coef)      z Pr(>|z|)   
+## age      0.0200882  1.0202913  0.0096644  2.079   0.0377 * 
+## sex     -0.5210319  0.5939074  0.1743541 -2.988   0.0028 **
+## wt.loss  0.0007596  1.0007599  0.0061934  0.123   0.9024   
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+##         exp(coef) exp(-coef) lower .95 upper .95
+## age        1.0203     0.9801    1.0011    1.0398
+## sex        0.5939     1.6838    0.4220    0.8359
+## wt.loss    1.0008     0.9992    0.9887    1.0130
+## 
+## Concordance= 0.612  (se = 0.027 )
+## Likelihood ratio test= 14.67  on 3 df,   p=0.002
+## Wald test            = 13.98  on 3 df,   p=0.003
+## Score (logrank) test = 14.24  on 3 df,   p=0.003
+```
+
+```{r}
+# save summarized results as data.frame
+#  exponentiate=T returns hazard ratios
+lung.cox.tab <- tidy(lung.cox, exponentiate=T, conf.int=T) 
+
+# display table   
+lung.cox.tab
+```
+
+```
+## # A tibble: 3 × 7
+##   term    estimate std.error statistic p.value conf.low conf.high
+##   <chr>      <dbl>     <dbl>     <dbl>   <dbl>    <dbl>     <dbl>
+## 1 age        1.02    0.00966     2.08  0.0377     1.00      1.04 
+## 2 sex        0.594   0.174      -2.99  0.00280    0.422     0.836
+## 3 wt.loss    1.00    0.00619     0.123 0.902      0.989     1.01
+```
+
+```{r}
+# plot of hazard ratios and 95% CIs
+ggplot(lung.cox.tab, 
+       aes(y=term, x=estimate, xmin=conf.low, xmax=conf.high)) + 
+  geom_pointrange() +  # plots center point (x) and range (xmin, xmax)
+  geom_vline(xintercept=1, color="red") + # vertical line at HR=1
+  labs(x="hazard ratio", title="Hazard ratios and 95% CIs") +
+  theme_classic()
+```
+
+![plot of chunk plot of coefficients](figure/plot of coefficients-1.png)
+
+```{r}
+# predict survival function for subject with means on all covariates
+surv.at.means <- survfit(lung.cox) 
+
+#table of survival function
+tidy(surv.at.means)
+```
+
+```
+## # A tibble: 179 × 8
+##     time n.risk n.event n.censor estimate std.error conf.high conf.low
+##    <dbl>  <dbl>   <dbl>    <dbl>    <dbl>     <dbl>     <dbl>    <dbl>
+##  1     5    214       1        0    0.996   0.00443     1        0.987
+##  2    11    213       2        0    0.987   0.00772     1        0.972
+##  3    12    211       1        0    0.982   0.00894     1.00     0.965
+##  4    13    210       2        0    0.973   0.0110      0.995    0.953
+##  5    15    208       1        0    0.969   0.0120      0.992    0.946
+##  6    26    207       1        0    0.964   0.0128      0.989    0.940
+##  7    30    206       1        0    0.960   0.0137      0.986    0.935
+##  8    31    205       1        0    0.955   0.0145      0.983    0.929
+##  9    53    204       2        0    0.946   0.0160      0.976    0.917
+## 10    54    202       1        0    0.942   0.0167      0.973    0.912
+## # ℹ 169 more rows
+```
+
+```{r}
+# plot of predicted survival for subject at means of covariates
+plot(surv.at.means, xlab="days", ylab="survival probability")
+```
+
+![plot of chunk Plotting survival curves](figure/Plotting survival curves-1.png)
+
+```{r}
+# create new data for plotting: 1 row for each sex
+#  and mean age and wt.loss for both rows
+plotdata <- data.frame(age=mean(lung$age),
+                       sex=1:2,
+                       wt.loss=mean(lung$wt.loss, na.rm=T))
+
+# look at new data
+plotdata
+```
+
+```
+##        age sex  wt.loss
+## 1 62.44737   1 9.831776
+## 2 62.44737   2 9.831776
+```
+
+```{r}
+# get survival function estimates for each sex
+surv.by.sex <- survfit(lung.cox, newdata=plotdata) # one function for each sex
+
+# tidy results
+tidy(surv.by.sex)
+```
+
+```
+## # A tibble: 179 × 12
+##     time n.risk n.event n.censor estimate.1 estimate.2 std.error.1 std.error.2 conf.high.1 conf.high.2
+##    <dbl>  <dbl>   <dbl>    <dbl>      <dbl>      <dbl>       <dbl>       <dbl>       <dbl>       <dbl>
+##  1     5    214       1        0      0.995      0.997     0.00546     0.00327       1           1    
+##  2    11    213       2        0      0.984      0.990     0.00953     0.00577       1           1    
+##  3    12    211       1        0      0.978      0.987     0.0111      0.00674       1.00        1    
+##  4    13    210       2        0      0.967      0.980     0.0137      0.00844       0.994       0.997
+##  5    15    208       1        0      0.962      0.977     0.0148      0.00921       0.990       0.995
+##  6    26    207       1        0      0.956      0.974     0.0159      0.00995       0.987       0.993
+##  7    30    206       1        0      0.951      0.971     0.0170      0.0107        0.983       0.991
+##  8    31    205       1        0      0.945      0.967     0.0180      0.0113        0.979       0.989
+##  9    53    204       2        0      0.934      0.960     0.0199      0.0127        0.972       0.985
+## 10    54    202       1        0      0.929      0.957     0.0208      0.0133        0.968       0.982
+## # ℹ 169 more rows
+## # ℹ 2 more variables: conf.low.1 <dbl>, conf.low.2 <dbl>
+```
+
+```{r}
+# plot survival estimates
+plot(surv.by.sex, xlab="days", ylab="survival probability",
+     conf.int=T, col=c("blue", "red"))
+```
+
+![plot of chunk Plotting multiple predicted survival functions](figure/Plotting multiple predicted survival functions-1.png)
+
+```{r}
+# data= is the same data used in survfit()
+#  censor=F removes censoring symbols
+ggsurvplot(surv.by.sex, data=plotdata, censor=F,
+           legend.labs=c("male", "female")) 
+```
+
+![plot of chunk ggsurvplot multiple survival functions](figure/ggsurvplot multiple survival functions-1.png)
+
+```{r}
+cox.zph(lung.cox)
+```
+
+```
+##          chisq df    p
+## age     0.5077  1 0.48
+## sex     2.5489  1 0.11
+## wt.loss 0.0144  1 0.90
+## GLOBAL  3.0051  3 0.39
+```
+
+```{r}
+plot(cox.zph(lung.cox))
+```
+
+![plot of chunk PH assessment plot](figure/PH assessment plot-1.png)![plot of chunk PH assessment plot](figure/PH assessment plot-2.png)![plot of chunk PH assessment plot](figure/PH assessment plot-3.png)
+
+```{r}
+# reprinting original model results
+summary(lung.cox)
+```
+
+```
+## Call:
+## coxph(formula = Surv(time, status) ~ age + sex + wt.loss, data = lung)
+## 
+##   n= 214, number of events= 152 
+##    (14 observations deleted due to missingness)
+## 
+##               coef  exp(coef)   se(coef)      z Pr(>|z|)   
+## age      0.0200882  1.0202913  0.0096644  2.079   0.0377 * 
+## sex     -0.5210319  0.5939074  0.1743541 -2.988   0.0028 **
+## wt.loss  0.0007596  1.0007599  0.0061934  0.123   0.9024   
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+##         exp(coef) exp(-coef) lower .95 upper .95
+## age        1.0203     0.9801    1.0011    1.0398
+## sex        0.5939     1.6838    0.4220    0.8359
+## wt.loss    1.0008     0.9992    0.9887    1.0130
+## 
+## Concordance= 0.612  (se = 0.027 )
+## Likelihood ratio test= 14.67  on 3 df,   p=0.002
+## Wald test            = 13.98  on 3 df,   p=0.003
+## Score (logrank) test = 14.24  on 3 df,   p=0.003
+```
+
+```{r}
+lung.strat.sex <- coxph(Surv(time, status) ~ age + wt.loss + strata(sex), data=lung)
+summary(lung.strat.sex)
+```
+
+```
+## Call:
+## coxph(formula = Surv(time, status) ~ age + wt.loss + strata(sex), 
+##     data = lung)
+## 
+##   n= 214, number of events= 152 
+##    (14 observations deleted due to missingness)
+## 
+##              coef exp(coef)  se(coef)     z Pr(>|z|)  
+## age     0.0192190 1.0194049 0.0096226 1.997   0.0458 *
+## wt.loss 0.0001412 1.0001412 0.0062509 0.023   0.9820  
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+##         exp(coef) exp(-coef) lower .95 upper .95
+## age         1.019     0.9810     1.000     1.039
+## wt.loss     1.000     0.9999     0.988     1.012
+## 
+## Concordance= 0.561  (se = 0.027 )
+## Likelihood ratio test= 4.09  on 2 df,   p=0.1
+## Wald test            = 3.99  on 2 df,   p=0.1
+## Score (logrank) test = 4  on 2 df,   p=0.1
+```
+
+```{r}
+# notice sex and tt(sex) in model formula
+lung.sex.by.time <- coxph(Surv(time, status) ~ age + wt.loss + sex + tt(sex), # sex and tt(sex) in formula
+                          data=lung,
+                          tt=function(x,t,...) x*t) # linear change in effect of sex
+summary(lung.sex.by.time)
+```
+
+```
+## Call:
+## coxph(formula = Surv(time, status) ~ age + wt.loss + sex + tt(sex), 
+##     data = lung, tt = function(x, t, ...) x * t)
+## 
+##   n= 214, number of events= 152 
+##    (14 observations deleted due to missingness)
+## 
+##               coef  exp(coef)   se(coef)      z Pr(>|z|)   
+## age      0.0194343  1.0196244  0.0096522  2.013   0.0441 * 
+## wt.loss  0.0001260  1.0001261  0.0062502  0.020   0.9839   
+## sex     -0.9417444  0.3899470  0.3224791 -2.920   0.0035 **
+## tt(sex)  0.0013778  1.0013787  0.0008581  1.606   0.1084   
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+##         exp(coef) exp(-coef) lower .95 upper .95
+## age        1.0196     0.9808    1.0005    1.0391
+## wt.loss    1.0001     0.9999    0.9879    1.0125
+## sex        0.3899     2.5645    0.2073    0.7337
+## tt(sex)    1.0014     0.9986    0.9997    1.0031
+## 
+## Concordance= 0.613  (se = 0.027 )
+## Likelihood ratio test= 17.23  on 4 df,   p=0.002
+## Wald test            = 15.86  on 4 df,   p=0.003
+## Score (logrank) test = 16.44  on 4 df,   p=0.002
+```
+
+```{r}
+plot(cox.zph(lung.cox), var="sex")
+```
+
+![plot of chunk graph of smoothed residuals again](figure/graph of smoothed residuals again-1.png)
+
+```{r}
+head(jasa1)
+```
+
+```
+##     id start stop event transplant        age      year surgery
+## 1    1     0   49     1          0 -17.155373 0.1232033       0
+## 2    2     0    5     1          0   3.835729 0.2546201       0
+## 102  3     0   15     1          1   6.297057 0.2655715       0
+## 3    4     0   35     0          0  -7.737166 0.4900753       0
+## 103  4    35   38     1          1  -7.737166 0.4900753       0
+## 4    5     0   17     1          0 -27.214237 0.6078029       0
+```
+
+```{r}
+jasa1.cox <- coxph(Surv(start, stop, event) ~ transplant + age + surgery, data=jasa1)
+summary(jasa1.cox)
+```
+
+```
+## Call:
+## coxph(formula = Surv(start, stop, event) ~ transplant + age + 
+##     surgery, data = jasa1)
+## 
+##   n= 170, number of events= 75 
+## 
+##                coef exp(coef) se(coef)      z Pr(>|z|)  
+## transplant  0.01405   1.01415  0.30822  0.046   0.9636  
+## age         0.03055   1.03103  0.01389  2.199   0.0279 *
+## surgery    -0.77326   0.46150  0.35966 -2.150   0.0316 *
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+##            exp(coef) exp(-coef) lower .95 upper .95
+## transplant    1.0142     0.9860    0.5543    1.8555
+## age           1.0310     0.9699    1.0033    1.0595
+## surgery       0.4615     2.1668    0.2280    0.9339
+## 
+## Concordance= 0.599  (se = 0.036 )
+## Likelihood ratio test= 10.72  on 3 df,   p=0.01
+## Wald test            = 9.68  on 3 df,   p=0.02
+## Score (logrank) test = 10  on 3 df,   p=0.02
+```
+
+```{r}
+# check PH assumptions
+cox.zph(jasa1.cox)
+```
+
+```
+##            chisq df    p
+## transplant 0.118  1 0.73
+## age        0.897  1 0.34
+## surgery    0.097  1 0.76
+## GLOBAL     1.363  3 0.71
+```
+
+```{r}
+# plot predicted survival by transplant group at mean age and surgery=0
+plotdata <- data.frame(transplant=0:1, age=-2.48, surgery=0)
+surv.by.transplant <- survfit(jasa1.cox, newdata=plotdata)
+ggsurvplot(surv.by.transplant, data=plotdata) # remember to supply data to ggsurvplot() for predicted survival after coxph()
+```
+
+![plot of chunk after coxph with time-varying covariates](figure/after coxph with time-varying covariates-1.png)
+
+```{r}
+#### EXERCISE 2 ####
+
+
+
+
+
+#### Solutions to Exercises ###
+```
+
+
+
